@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct MenuBarPanelView: View {
@@ -31,7 +32,15 @@ struct MenuBarPanelView: View {
             systemImage: "macwindow",
             accessibilityIdentifier: "menu.open-main-window"
         ) {
+            let shouldHideDockIcon = UserDefaults.standard.bool(forKey: "dockIconHidden")
+            _ = NSApp.setActivationPolicy(shouldHideDockIcon ? .accessory : .regular)
             openWindow(id: WindowIdentifier.main.rawValue)
+            NSApp.activate(ignoringOtherApps: true)
+            if shouldHideDockIcon {
+                DispatchQueue.main.async {
+                    _ = NSApp.setActivationPolicy(.accessory)
+                }
+            }
         }
     }
 }

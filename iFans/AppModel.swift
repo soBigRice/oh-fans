@@ -69,6 +69,16 @@ struct AppRuntimeEnvironment: Sendable {
 @MainActor
 @Observable
 final class AppModel {
+    private struct LatestReleaseResponse: Decodable {
+        let tagName: String
+        let htmlURL: URL
+
+        enum CodingKeys: String, CodingKey {
+            case tagName = "tag_name"
+            case htmlURL = "html_url"
+        }
+    }
+
     private enum TerminationRestoreOutcome {
         case completed(RestoreAutomaticResult)
         case timedOut
@@ -97,6 +107,10 @@ final class AppModel {
     var isInstallingHelper = false
     var consecutiveReadFailures = 0
     var appearanceStyle: AppAppearanceStyle
+    var isCheckingForUpdates = false
+    var updateStatusMessage: String?
+    var latestVersionTag: String?
+    var updateDownloadURL: URL?
 
     init(
         provider: any HardwareProvider,
@@ -356,6 +370,53 @@ final class AppModel {
         defaults.set(style.rawValue, forKey: DefaultsKey.appearanceStyle)
     }
 
+    var hasUpdateAvailable: Bool {
+        updateDownloadURL != nil
+    }
+
+    func checkForUpdates() async {
+        guard !isCheckingForUpdates else { return }
+        isCheckingForUpdates = true
+        defer { isCheckingForUpdates = false }
+
+        do {
+            var request = URLRequest(url: AppBrand.githubLatestReleaseAPIURL)
+            request.timeoutInterval = 10
+            request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+            request.setValue(AppBrand.displayName, forHTTPHeaderField: "User-Agent")
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                updateStatusMessage = "检查更新失败：响应无效。"
+                updateDownloadURL = nil
+                return
+            }
+
+            guard (200..<300).contains(httpResponse.statusCode) else {
+                updateStatusMessage = "检查更新失败：GitHub 返回 \(httpResponse.statusCode)。"
+                updateDownloadURL = nil
+                return
+            }
+
+            let release = try JSONDecoder().decode(LatestReleaseResponse.self, from: data)
+            let remoteVersion = Self.normalizedVersionString(release.tagName)
+            let currentVersion = Self.currentVersionString()
+
+            latestVersionTag = release.tagName
+
+            if Self.isVersion(remoteVersion, newerThan: currentVersion) {
+                updateDownloadURL = release.htmlURL
+                updateStatusMessage = "发现新版本 \(release.tagName)，当前版本 \(currentVersion)。"
+            } else {
+                updateDownloadURL = nil
+                updateStatusMessage = "当前已是最新版本（\(currentVersion)）。"
+            }
+        } catch {
+            updateStatusMessage = "检查更新失败：\(error.localizedDescription)"
+            updateDownloadURL = nil
+        }
+    }
+
     private func persistSelectedMode() {
         defaults.set(selectedMode.rawValue, forKey: DefaultsKey.selectedMode)
     }
@@ -366,7 +427,42 @@ final class AppModel {
 
     private nonisolated static func persistedAppearanceStyle(using defaults: UserDefaults) -> AppAppearanceStyle {
         AppAppearanceStyle(rawValue: defaults.string(forKey: DefaultsKey.appearanceStyle) ?? "")
-            ?? .highTransparency
+            ?? .normal
+    }
+
+    private nonisolated static func currentVersionString(bundle: Bundle = .main) -> String {
+        (bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
+            ?? (bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String)
+            ?? "0"
+    }
+
+    private nonisolated static func normalizedVersionString(_ rawVersion: String) -> String {
+        let scalars = rawVersion.unicodeScalars
+        if let firstDigitIndex = scalars.firstIndex(where: { CharacterSet.decimalDigits.contains($0) }) {
+            let start = rawVersion.index(rawVersion.startIndex, offsetBy: scalars.distance(from: scalars.startIndex, to: firstDigitIndex))
+            return String(rawVersion[start...])
+        }
+        return rawVersion
+    }
+
+    private nonisolated static func isVersion(_ remote: String, newerThan local: String) -> Bool {
+        let remoteParts = remote
+            .split(separator: ".")
+            .map { Int($0) ?? 0 }
+        let localParts = local
+            .split(separator: ".")
+            .map { Int($0) ?? 0 }
+
+        let maxCount = max(remoteParts.count, localParts.count)
+        for index in 0..<maxCount {
+            let remoteValue = index < remoteParts.count ? remoteParts[index] : 0
+            let localValue = index < localParts.count ? localParts[index] : 0
+
+            if remoteValue > localValue { return true }
+            if remoteValue < localValue { return false }
+        }
+
+        return false
     }
 
     private func applyStoredModeIfPossible() async throws {

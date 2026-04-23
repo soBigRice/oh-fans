@@ -7,6 +7,9 @@ enum AppBrand {
     nonisolated static let menuBarAccessibilityLabel = "\(displayName) 菜单栏"
     nonisolated static let authorName = "soBigRice"
     nonisolated static let authorProfileURL = URL(string: "https://github.com/soBigRice")!
+    nonisolated static let githubRepositoryURL = URL(string: "https://github.com/soBigRice/oh-fans")!
+    nonisolated static let githubReleasesURL = URL(string: "https://github.com/soBigRice/oh-fans/releases/tag/v1.0")!
+    nonisolated static let githubLatestReleaseAPIURL = URL(string: "https://api.github.com/repos/soBigRice/oh-fans/releases/latest")!
 
     nonisolated static func versionDescription(bundle: Bundle = .main) -> String {
         let shortVersion = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String

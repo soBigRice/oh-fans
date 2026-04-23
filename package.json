@@ -1,0 +1,11 @@
+{
+  "name": "oh-fans-release-tools",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Local release tooling for oh fans",
+  "scripts": {
+    "build:dmg": "./script/build_unsigned_dmg.sh",
+    "release": "npm run build:dmg",
+    "version:bump": "node ./script/bump-version.mjs"
+  }
+}

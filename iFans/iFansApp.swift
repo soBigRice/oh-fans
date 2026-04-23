@@ -14,6 +14,7 @@ struct iFansApp: App {
     @NSApplicationDelegateAdaptor(AppTerminationCoordinator.self) private var terminationCoordinator
     @State private var model: AppModel
     private let appIconController = ApplicationIconController()
+    private let dockVisibilityController = DockVisibilityController()
 
     private static func mainWindowSize(
         arguments: [String] = ProcessInfo.processInfo.arguments
@@ -41,6 +42,11 @@ struct iFansApp: App {
         return .standard
     }
 
+    private static func applyDockIconVisibilityPreference(using defaults: UserDefaults = .standard) {
+        let isDockIconHidden = defaults.bool(forKey: "dockIconHidden")
+        _ = NSApp.setActivationPolicy(isDockIconHidden ? .accessory : .regular)
+    }
+
     init() {
         let runtimeEnvironment = AppRuntimeEnvironment.current()
         let arguments = ProcessInfo.processInfo.arguments
@@ -64,7 +70,10 @@ struct iFansApp: App {
         }
 
         let iconController = appIconController
-        Task { @MainActor [appModel, iconController] in
+        let dockController = dockVisibilityController
+        Task { @MainActor [appModel, iconController, dockController] in
+            Self.applyDockIconVisibilityPreference()
+            dockController.start()
             iconController.start()
             appModel.start()
         }
@@ -96,7 +105,7 @@ struct iFansApp: App {
     var body: some Scene {
         let mainWindowSize = Self.mainWindowSize()
 
-        WindowGroup(AppBrand.displayName, id: WindowIdentifier.main.rawValue) {
+        Window(AppBrand.displayName, id: WindowIdentifier.main.rawValue) {
             ContentView()
                 .environment(model)
                 .frame(
@@ -157,6 +166,63 @@ private final class ApplicationIconController {
         appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
             ? "RuntimeDarkAppIcon"
             : "RuntimeLightAppIcon"
+    }
+}
+
+@MainActor
+private final class DockVisibilityController {
+    private var notificationObservers: [NSObjectProtocol] = []
+
+    func start() {
+        guard notificationObservers.isEmpty else { return }
+
+        applyPolicyFromDefaults()
+
+        let center = NotificationCenter.default
+        notificationObservers.append(
+            center.addObserver(
+                forName: NSApplication.didBecomeActiveNotification,
+                object: NSApp,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.applyPolicyFromDefaults()
+                }
+            }
+        )
+        notificationObservers.append(
+            center.addObserver(
+                forName: NSWindow.didBecomeMainNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.applyPolicyFromDefaults()
+                }
+            }
+        )
+        notificationObservers.append(
+            center.addObserver(
+                forName: NSWindow.didBecomeKeyNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.applyPolicyFromDefaults()
+                }
+            }
+        )
+    }
+
+    deinit {
+        for observer in notificationObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+
+    private func applyPolicyFromDefaults() {
+        let isDockIconHidden = UserDefaults.standard.bool(forKey: "dockIconHidden")
+        _ = NSApp.setActivationPolicy(isDockIconHidden ? .accessory : .regular)
     }
 }
 

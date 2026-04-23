@@ -5,12 +5,14 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @AppStorage("launchAtLoginEnabled") private var launchAtLoginEnabled = false
+    @AppStorage("dockIconHidden") private var dockIconHidden = false
     @State private var launchAtLoginError: String?
 
     var body: some View {
         Form {
             Section("启动与外观") {
                 Toggle("登录时启动 \(AppBrand.displayName)", isOn: bindingForLaunchAtLogin)
+                Toggle("隐藏 Dock 图标（仅菜单栏）", isOn: bindingForDockIconVisibility)
                 Text("如果状态栏图标不可见，请到 系统设置 > 菜单栏 中启用 \(AppBrand.displayName)。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -81,8 +83,12 @@ struct SettingsView: View {
                 }
 
                 LabeledContent("GitHub") {
-                    Link(destination: URL(string: "https://github.com/soBigRice/oh-fans")!) {
-                        Label("oh-fans", systemImage: "chevron.left.forwardslash.chevron.right")
+                    Link(destination: AppBrand.githubRepositoryURL) {
+                        Label {
+                            Text("oh-fans")
+                        } icon: {
+                            githubIcon
+                        }
                     }
                     .accessibilityIdentifier("settings.github.link")
                 }
@@ -90,6 +96,40 @@ struct SettingsView: View {
                 LabeledContent("版本") {
                     Text(AppBrand.versionDescription())
                         .accessibilityIdentifier("settings.version")
+                }
+
+                LabeledContent("更新") {
+                    VStack(alignment: .trailing, spacing: 8) {
+                        Button {
+                            Task { await model.checkForUpdates() }
+                        } label: {
+                            if model.isCheckingForUpdates {
+                                HStack(spacing: 6) {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                    Text("检查中")
+                                }
+                            } else {
+                                Label("检查更新", systemImage: "arrow.triangle.2.circlepath")
+                            }
+                        }
+                        .disabled(model.isCheckingForUpdates)
+                        .accessibilityIdentifier("settings.check-update")
+
+                        if let updateStatusMessage = model.updateStatusMessage {
+                            Text(updateStatusMessage)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.trailing)
+                        }
+
+                        if let downloadURL = model.updateDownloadURL {
+                            Link(destination: downloadURL) {
+                                Label("下载更新", systemImage: "arrow.down.circle.fill")
+                            }
+                            .accessibilityIdentifier("settings.download-update")
+                        }
+                    }
                 }
 
                 Button {
@@ -130,5 +170,34 @@ struct SettingsView: View {
                 model.setAppearanceStyle(style)
             }
         )
+    }
+
+    private var bindingForDockIconVisibility: Binding<Bool> {
+        Binding(
+            get: { dockIconHidden },
+            set: { hidden in
+                dockIconHidden = hidden
+                applyDockIconVisibility(isHidden: hidden)
+            }
+        )
+    }
+
+    private func applyDockIconVisibility(isHidden: Bool) {
+        _ = NSApp.setActivationPolicy(isHidden ? .accessory : .regular)
+        if !isHidden {
+            NSApp.activate(ignoringOtherApps: true)
+        }
+    }
+
+    @ViewBuilder
+    private var githubIcon: some View {
+        if let symbol = NSImage(
+            systemSymbolName: "logo.github",
+            accessibilityDescription: "GitHub"
+        ) {
+            Image(nsImage: symbol)
+        } else {
+            Image(systemName: "chevron.left.forwardslash.chevron.right")
+        }
     }
 }
