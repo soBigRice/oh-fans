@@ -13,15 +13,16 @@ import SwiftUI
 struct iFansApp: App {
     @NSApplicationDelegateAdaptor(AppTerminationCoordinator.self) private var terminationCoordinator
     @State private var model: AppModel
+    private let appIconController = ApplicationIconController()
 
     private static func mainWindowSize(
         arguments: [String] = ProcessInfo.processInfo.arguments
     ) -> CGSize {
         if arguments.contains("-ui-test-menu-panel") {
-            return CGSize(width: 296, height: 244)
+            return CGSize(width: 272, height: 140)
         }
 
-        return CGSize(width: 332, height: 388)
+        return CGSize(width: 304, height: 356)
     }
 
     private static func appDefaults(
@@ -62,7 +63,9 @@ struct iFansApp: App {
             await appModel.prepareForTermination()
         }
 
-        Task { @MainActor in
+        let iconController = appIconController
+        Task { @MainActor [appModel, iconController] in
+            iconController.start()
             appModel.start()
         }
     }
@@ -96,7 +99,14 @@ struct iFansApp: App {
         WindowGroup(AppBrand.displayName, id: WindowIdentifier.main.rawValue) {
             ContentView()
                 .environment(model)
-                .frame(width: mainWindowSize.width, height: mainWindowSize.height)
+                .frame(
+                    minWidth: mainWindowSize.width,
+                    idealWidth: mainWindowSize.width,
+                    maxWidth: mainWindowSize.width,
+                    minHeight: mainWindowSize.height,
+                    idealHeight: mainWindowSize.height,
+                    maxHeight: mainWindowSize.height
+                )
                 .toolbar(removing: .title)
                 .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         }
@@ -108,7 +118,7 @@ struct iFansApp: App {
         MenuBarExtra {
             MenuBarPanelView()
                 .environment(model)
-                .frame(width: 296)
+                .frame(width: 272, height: 140)
         } label: {
             MenuBarStatusLabel(
                 title: model.menuBarLabel,
@@ -122,6 +132,31 @@ struct iFansApp: App {
                 .environment(model)
                 .frame(width: 520, height: 460)
         }
+    }
+}
+
+@MainActor
+private final class ApplicationIconController {
+    private var appearanceObservation: NSKeyValueObservation?
+
+    func start() {
+        guard appearanceObservation == nil else { return }
+
+        // macOS 的传统 AppIcon 资源不会可靠地产出 dark variant，这里在运行时补一次 Dock 图标切换。
+        appearanceObservation = NSApp.observe(\.effectiveAppearance, options: [.initial, .new]) { app, _ in
+            let assetName = Self.assetName(for: app.effectiveAppearance)
+            guard let iconImage = NSImage(named: NSImage.Name(assetName)) else {
+                return
+            }
+
+            app.applicationIconImage = iconImage
+        }
+    }
+
+    private nonisolated static func assetName(for appearance: NSAppearance) -> String {
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? "RuntimeDarkAppIcon"
+            : "RuntimeLightAppIcon"
     }
 }
 

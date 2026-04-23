@@ -3,6 +3,22 @@ import Foundation
 import Observation
 import Security
 
+enum AppAppearanceStyle: String, CaseIterable, Identifiable, Sendable {
+    case highTransparency
+    case normal
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .highTransparency:
+            return "高透"
+        case .normal:
+            return "正常"
+        }
+    }
+}
+
 struct AppRuntimeEnvironment: Sendable {
     let isSandboxed: Bool
     let machineIdentifier: String
@@ -60,6 +76,7 @@ final class AppModel {
 
     private enum DefaultsKey {
         nonisolated static let selectedMode = "selectedFanMode"
+        nonisolated static let appearanceStyle = "panelAppearanceStyle"
     }
 
     private let provider: any HardwareProvider
@@ -79,6 +96,7 @@ final class AppModel {
     var isLoading = true
     var isInstallingHelper = false
     var consecutiveReadFailures = 0
+    var appearanceStyle: AppAppearanceStyle
 
     init(
         provider: any HardwareProvider,
@@ -95,6 +113,7 @@ final class AppModel {
         self.startupControlRetryAttempts = startupControlRetryAttempts
         self.startupControlRetryDelay = startupControlRetryDelay
         self.selectedMode = Self.persistedSelectedMode(using: defaults)
+        self.appearanceStyle = Self.persistedAppearanceStyle(using: defaults)
     }
 
     deinit {
@@ -147,26 +166,26 @@ final class AppModel {
         }
 
         if canControl {
-            return "当前特权 helper 已就绪，可直接切换风扇模式。"
+            return "当前辅助控件已就绪，可直接切换风扇模式。"
         }
 
         if runtimeEnvironment.isSandboxed {
             return runtimeEnvironment.sandboxUnsupportedMessage
         }
 
-        return "当前没有需要安装或重装的特权 helper 问题。"
+        return "当前没有需要安装或重装辅助控件的问题。"
     }
 
     var helperInstallDetailText: String {
         guard let helperInstallAction else {
-            return "只有在 helper 缺失或版本不匹配时，风扇控制才会退回监控模式。"
+            return "只有在辅助控件缺失或版本不匹配时，风扇控制才会退回监控模式。"
         }
 
         switch helperInstallAction.kind {
         case .install:
-            return "点击后会请求管理员授权，并执行当前工程里的 helper 安装脚本；未安装前只能监控，不能切换风扇模式。"
+            return "点击后会请求管理员授权，并执行当前 app 内置的辅助控件安装流程；安装完成后会立刻验证控制通道是否已上线。未安装前只能监控，不能切换风扇模式。"
         case .reinstall:
-            return "点击后会请求管理员授权，并重装当前版本的 helper；旧版 helper 会让 app 退回监控模式。"
+            return "点击后会请求管理员授权，并重装当前版本的辅助控件；安装完成后会立刻验证控制通道是否已上线。旧版或异常辅助控件会让 app 退回监控模式。"
         }
     }
 
@@ -331,12 +350,23 @@ final class AppModel {
         }
     }
 
+    func setAppearanceStyle(_ style: AppAppearanceStyle) {
+        guard appearanceStyle != style else { return }
+        appearanceStyle = style
+        defaults.set(style.rawValue, forKey: DefaultsKey.appearanceStyle)
+    }
+
     private func persistSelectedMode() {
         defaults.set(selectedMode.rawValue, forKey: DefaultsKey.selectedMode)
     }
 
     private nonisolated static func persistedSelectedMode(using defaults: UserDefaults) -> FanMode {
         FanMode(rawValue: defaults.string(forKey: DefaultsKey.selectedMode) ?? "") ?? .systemAuto
+    }
+
+    private nonisolated static func persistedAppearanceStyle(using defaults: UserDefaults) -> AppAppearanceStyle {
+        AppAppearanceStyle(rawValue: defaults.string(forKey: DefaultsKey.appearanceStyle) ?? "")
+            ?? .highTransparency
     }
 
     private func applyStoredModeIfPossible() async throws {

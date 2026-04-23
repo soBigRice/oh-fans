@@ -15,6 +15,13 @@ struct SettingsView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
+                Picker("面板外观", selection: bindingForAppearanceStyle) {
+                    ForEach(AppAppearanceStyle.allCases) { style in
+                        Text(style.title).tag(style)
+                    }
+                }
+                .pickerStyle(.segmented)
+
                 if let launchAtLoginError {
                     Text(launchAtLoginError)
                         .font(.footnote)
@@ -31,7 +38,7 @@ struct SettingsView: View {
                 }
             }
 
-            Section("特权 helper") {
+            Section("辅助控件") {
                 Text(model.helperInstallStatusText)
                     .foregroundStyle(.secondary)
 
@@ -105,6 +112,15 @@ struct SettingsView: View {
                 } catch {
                     launchAtLoginError = error.localizedDescription
                 }
+            }
+        )
+    }
+
+    private var bindingForAppearanceStyle: Binding<AppAppearanceStyle> {
+        Binding(
+            get: { model.appearanceStyle },
+            set: { style in
+                model.setAppearanceStyle(style)
             }
         )
     }
