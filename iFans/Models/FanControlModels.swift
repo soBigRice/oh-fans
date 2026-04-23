@@ -32,6 +32,13 @@ enum WindowIdentifier: String {
     case main
 }
 
+enum AppPreferenceKey {
+    nonisolated static let selectedFanMode = "selectedFanMode"
+    nonisolated static let panelAppearanceStyle = "panelAppearanceStyle"
+    nonisolated static let launchAtLoginEnabled = "launchAtLoginEnabled"
+    nonisolated static let dockIconHidden = "dockIconHidden"
+}
+
 enum FanMode: String, CaseIterable, Identifiable, Sendable {
     case systemAuto
     case quiet

@@ -84,11 +84,6 @@ final class AppModel {
         case timedOut
     }
 
-    private enum DefaultsKey {
-        nonisolated static let selectedMode = "selectedFanMode"
-        nonisolated static let appearanceStyle = "panelAppearanceStyle"
-    }
-
     private let provider: any HardwareProvider
     let runtimeEnvironment: AppRuntimeEnvironment
     @ObservationIgnored private let defaults: UserDefaults
@@ -367,7 +362,7 @@ final class AppModel {
     func setAppearanceStyle(_ style: AppAppearanceStyle) {
         guard appearanceStyle != style else { return }
         appearanceStyle = style
-        defaults.set(style.rawValue, forKey: DefaultsKey.appearanceStyle)
+        defaults.set(style.rawValue, forKey: AppPreferenceKey.panelAppearanceStyle)
     }
 
     var hasUpdateAvailable: Bool {
@@ -418,15 +413,15 @@ final class AppModel {
     }
 
     private func persistSelectedMode() {
-        defaults.set(selectedMode.rawValue, forKey: DefaultsKey.selectedMode)
+        defaults.set(selectedMode.rawValue, forKey: AppPreferenceKey.selectedFanMode)
     }
 
     private nonisolated static func persistedSelectedMode(using defaults: UserDefaults) -> FanMode {
-        FanMode(rawValue: defaults.string(forKey: DefaultsKey.selectedMode) ?? "") ?? .systemAuto
+        FanMode(rawValue: defaults.string(forKey: AppPreferenceKey.selectedFanMode) ?? "") ?? .systemAuto
     }
 
     private nonisolated static func persistedAppearanceStyle(using defaults: UserDefaults) -> AppAppearanceStyle {
-        AppAppearanceStyle(rawValue: defaults.string(forKey: DefaultsKey.appearanceStyle) ?? "")
+        AppAppearanceStyle(rawValue: defaults.string(forKey: AppPreferenceKey.panelAppearanceStyle) ?? "")
             ?? .normal
     }
 
