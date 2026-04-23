@@ -1,122 +1,103 @@
-# oh fans
+<!--
+ * @Author: superRice
+ * @Date: 2026-04-23 11:29:23
+ * @LastEditors: superRice 1246333567@qq.com
+ * @LastEditTime: 2026-04-23 18:01:57
+ * @FilePath: /iFans/README.md
+ * @Description:
+ * Do your best to be yourself
+ * Copyright (c) 2026 by superRice, All Rights Reserved.
+-->
+<p align="center">
+  <img src="iFans/Assets.xcassets/AppIcon.appiconset/icon_512x512.png" alt="oh fans app icon" width="128">
+</p>
 
-`oh fans` 是一个面向通用 M 系列 Mac 用户的菜单栏风扇控制工具，仅支持 Apple Silicon（M1 / M2 / M3 / M4 及后续 M 系列），不支持 Intel Mac。
+<h1 align="center">oh fans</h1>
 
-它的目标不是做一个只能“读到风扇数据”的演示，而是把真实的控制链路打通：左键打开菜单栏面板，右键状态栏图标弹出“设置 / 退出”，主窗口和设置页都能直接操作，同时通过辅助控件（底层为特权 helper）解决 AppleSMC 在普通进程里无法写入的问题。
+<p align="center">给 Apple Silicon Mac 用的菜单栏风扇控制工具</p>
 
-## 支持范围
+<p align="center">
+  <img src="https://img.shields.io/badge/Apple_Silicon-M_Series_Only-111111?style=for-the-badge&logo=apple&logoColor=white" alt="Apple Silicon only">
+  <img src="https://img.shields.io/badge/Menu_Bar-Quick_Control-0f172a?style=for-the-badge&logo=apple&logoColor=white" alt="Menu bar quick control">
+  <img src="https://img.shields.io/badge/Auto_Manual-Easy_Switch-1f2937?style=for-the-badge&logo=swift&logoColor=white" alt="Auto and manual mode">
+  <img src="https://img.shields.io/badge/Helper-Real_Fan_Control-374151?style=for-the-badge&logo=apple&logoColor=white" alt="Helper for real control">
+</p>
+
+<p align="center">
+  <a href="https://github.com/soBigRice/oh-fans/releases/latest">
+    <img src="https://img.shields.io/badge/Download-Latest_Release-16a34a?style=for-the-badge&logo=github&logoColor=white" alt="Download latest oh fans release">
+  </a>
+</p>
+
+`oh fans` 是一个面向 M 系列 Mac 的菜单栏风扇控制工具。它不只是把风扇数据展示出来，还把真正可用的控制链路、状态反馈和常用操作都收进了一个轻量的桌面应用里。
+
+<table align="center">
+  <tr>
+    <td align="center" width="180">
+      <strong>🍎 Apple Silicon</strong><br>
+      只支持 M 系列 Mac
+    </td>
+    <td align="center" width="180">
+      <strong>🌀 菜单栏常驻</strong><br>
+      左键控制，右键快捷菜单
+    </td>
+    <td align="center" width="180">
+      <strong>🎛️ 模式切换</strong><br>
+      自动与手动快速切换
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="180">
+      <strong>✨ 预设直达</strong><br>
+      常用档位一键切换
+    </td>
+    <td align="center" width="180">
+      <strong>🧩 辅助控件</strong><br>
+      用于真正写入风扇控制
+    </td>
+    <td align="center" width="180">
+      <strong>🔎 状态反馈</strong><br>
+      异常时直接给出提示
+    </td>
+  </tr>
+</table>
+
+## 🍎 适用范围
 
 - 仅支持 Apple Silicon（M1 / M2 / M3 / M4 及后续 M 系列）Mac
 - 不支持 Intel Mac
-- 辅助控件是风扇写入链路的必要组件；缺失、损坏或版本不匹配时，app 只保留监控模式
-- 只要辅助控件二进制或通信协议变更，就必须重新安装辅助控件，否则系统里的旧版本会继续运行
 
-## 当前能力
+## 📦 下载安装
 
-- 菜单栏常驻：左键打开紧凑面板，右键状态栏图标弹出“设置 / 退出”
-- 主窗口 + Settings：支持模式切换、辅助控件诊断、作者链接、版本号、退出入口
-- 外观样式切换：Settings 支持“高透 / 正常”，主窗口与顶部小菜单同步生效
-- 模式切换支持长按液态滑动预览：拖动时液滴跟手，松开后再切换模式
-- Apple Silicon 风扇读取与控制
-- 辅助控件安装 / 重装链路
-- 辅助控件握手、probe、apply、restore 的命令行验证工具（`helper_smoke_test`）
-- 预览数据 / 只读模式 / 辅助控件缺失场景的 UI 测试参数
+- 下载地址：[点击下载](https://github.com/soBigRice/oh-fans/releases/latest)
+- 首次安装如果被 macOS 拦截，请查看 [打不开时的处理说明](docs/README_如果打不开请看这里.md)
 
-## 技术要点
+## ✨ 主要功能
 
-- SwiftUI + macOS `MenuBarExtra(.window)`
-- AppKit / Accessibility 桥接状态栏右键菜单
-- AppleSMC 底层桥接
-- 特权辅助控件（底层为 helper）+ XPC 通信
-- 开发期辅助控件 payload 自动打包进 app
+- 菜单栏常驻，随时查看和操作风扇状态
+- 左键打开紧凑控制面板，右键打开“设置 / 退出”快捷菜单
+- 支持自动与手动控制模式切换
+- 支持常用预设切换，减少重复设置
+- 支持“高透 / 正常”两种界面样式
+- 支持在主界面和设置页查看辅助控件状态、版本信息和重装入口
+- 当控制链路异常时，直接给出明确提示，而不是只有“点了没反应”
 
-## 目录结构
+## 🖱️ 使用方式
 
-```text
-.
-├── iFans/                     主应用源码
-│   ├── Hardware/              AppleSMC、辅助控件桥接、硬件探测
-│   ├── Models/                预设模式、品牌信息、状态模型
-│   └── Views/                 菜单栏面板、主窗口、设置页
-├── helper/                    辅助控件底层入口
-├── script/                    辅助控件构建 / 安装 / smoke test 脚本
-├── docs/                      安装说明、踩坑记录
-├── iFansTests/                单元测试
-└── iFansUITests/              UI 测试
-```
+- 左键菜单栏图标：打开紧凑控制面板
+- 右键菜单栏图标：打开快捷菜单
+- 在设置页可以查看当前状态、切换界面样式、检查辅助控件状态
 
-## 本地开发
+## 🧩 关于辅助控件
 
-### 环境要求
+macOS 不允许普通应用直接写 AppleSMC 的风扇控制键，所以 `oh fans` 在真正控制风扇时需要依赖辅助控件完成底层操作。
 
-- macOS
-- Xcode 26+
-- M 系列 Apple Silicon Mac
+- 没有辅助控件时，应用仍可打开，但只保留监控能力
+- 辅助控件缺失、损坏或版本不匹配时，界面会自动提示安装或重装
+- 辅助控件恢复正常后，就可以继续使用真实风扇控制能力
 
-### 构建 app
+## 📌 当前边界
 
-```bash
-xcodebuild build \
-  -project iFans.xcodeproj \
-  -scheme iFans \
-  -destination 'platform=macOS' \
-  -derivedDataPath build/DerivedDataBridge \
-  CODE_SIGNING_ALLOWED=NO
-```
-
-### 构建辅助控件
-
-```bash
-./script/build_helper.sh
-```
-
-构建后会生成：
-
-- `./build/helper/com.sobigrice.iFans.helper`
-- `./build/helper/com.sobigrice.iFans.helper.plist`
-- `./build/helper/helper_smoke_test`
-
-### 安装辅助控件
-
-```bash
-./script/install_helper.sh
-```
-
-安装成功后，可以用下面几条命令做最小验证：
-
-```bash
-./build/helper/helper_smoke_test handshake
-./build/helper/helper_smoke_test probe
-./build/helper/helper_smoke_test status
-```
-
-当前安装脚本会在 `bootstrap` 前自动补做 `launchctl enable`，并等待 system 域里的 disabled override 真正清掉；如果辅助控件安装命令跑完后控制通道仍未上线，app 会直接回显诊断信息，而不是只表现成“输入密码后没反应”。
-
-如果要验证真实控制，不要只看 `probe`，还应该继续做：
-
-```bash
-./build/helper/helper_smoke_test apply 3000
-./build/helper/helper_smoke_test restore
-```
-
-## 运行说明
-
-- 左键菜单栏风扇图标：打开紧凑控制面板
-- 右键菜单栏风扇图标：弹出“设置 / 退出”
-- 如果辅助控件缺失或版本不匹配，界面会退回监控模式，并在主界面 / 设置页给出安装或重装入口
-
-## 文档
-
-- [辅助控件安装说明](docs/privileged-helper-setup.md)
-- [已知问题与规避记录](docs/known-issues.md)
-
-## 当前限制
-
-- 当前优先解决的是“真实可控”的开发版链路，还不是完整签名分发版本
-- 当前只支持 M 系列 Apple Silicon Mac，不支持 Intel Mac
-- 辅助控件代码或通信协议变更后，需要重新安装系统里的辅助控件
-- `xcodebuild test` 这条链路目前还有工程级噪音，日常验证建议先以真实构建产物和 `helper_smoke_test` 为准
-
-## 作者
-
-- GitHub: [soBigRice](https://github.com/soBigRice)
+- 当前只支持 Apple Silicon，不支持 Intel Mac
+- 辅助控件不可用时，会自动退回监控模式
+- GitHub 上的未签名测试版首次打开时，macOS 可能拦截；这种情况请查看 [打不开时的处理说明](docs/README_如果打不开请看这里.md)

@@ -24,7 +24,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		8B4660DD2F9265E800EAF93E /* iFans.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iFans.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8B4660DD2F9265E800EAF93E /* oh fans.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "oh fans.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		8B4660EA2F9265EA00EAF93E /* iFansTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = iFansTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8B4660F42F9265EA00EAF93E /* iFansUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = iFansUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -85,7 +85,7 @@
 		8B4660DE2F9265E800EAF93E /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				8B4660DD2F9265E800EAF93E /* iFans.app */,
+				8B4660DD2F9265E800EAF93E /* oh fans.app */,
 				8B4660EA2F9265EA00EAF93E /* iFansTests.xctest */,
 				8B4660F42F9265EA00EAF93E /* iFansUITests.xctest */,
 			);
@@ -115,7 +115,7 @@
 			packageProductDependencies = (
 			);
 			productName = iFans;
-			productReference = 8B4660DD2F9265E800EAF93E /* iFans.app */;
+			productReference = 8B4660DD2F9265E800EAF93E /* oh fans.app */;
 			productType = "com.apple.product-type.application";
 		};
 		8B4660E92F9265EA00EAF93E /* iFansTests */ = {
@@ -443,7 +443,8 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sobigrice.ohFans;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_MODULE_NAME = iFans;
+				PRODUCT_NAME = "oh fans";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -477,7 +478,8 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sobigrice.ohFans;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_MODULE_NAME = iFans;
+				PRODUCT_NAME = "oh fans";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -505,7 +507,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/iFans.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/iFans";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/oh fans.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/oh fans";
 			};
 			name = Debug;
 		};
@@ -525,7 +527,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/iFans.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/iFans";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/oh fans.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/oh fans";
 			};
 			name = Release;
 		};

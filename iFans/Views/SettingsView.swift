@@ -80,6 +80,13 @@ struct SettingsView: View {
                         .accessibilityIdentifier("settings.author.link")
                 }
 
+                LabeledContent("GitHub") {
+                    Link(destination: URL(string: "https://github.com/soBigRice/oh-fans")!) {
+                        Label("oh-fans", systemImage: "chevron.left.forwardslash.chevron.right")
+                    }
+                    .accessibilityIdentifier("settings.github.link")
+                }
+
                 LabeledContent("版本") {
                     Text(AppBrand.versionDescription())
                         .accessibilityIdentifier("settings.version")

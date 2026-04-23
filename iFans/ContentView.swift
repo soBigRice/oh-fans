@@ -62,3 +62,5 @@ private struct TransparentWindowConfigurator: NSViewRepresentable {
         }
     }
 }
+
+

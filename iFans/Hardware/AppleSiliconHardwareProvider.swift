@@ -70,6 +70,29 @@ private struct HIDSensorService {
     nonisolated(unsafe) let service: IOHIDServiceClient
 }
 
+private struct SMCTemperatureProbe: Sendable {
+    let key: String
+    let name: String
+    let kind: SensorKind
+}
+
+private enum SMCTemperatureCatalog {
+    nonisolated static let probes: [SMCTemperatureProbe] = [
+        SMCTemperatureProbe(key: "TC0P", name: "CPU", kind: .performanceCPU),
+        SMCTemperatureProbe(key: "TC0E", name: "CPU 核心", kind: .performanceCPU),
+        SMCTemperatureProbe(key: "TG0P", name: "GPU", kind: .gpu),
+        SMCTemperatureProbe(key: "TG0D", name: "GPU 核心", kind: .gpu),
+        SMCTemperatureProbe(key: "TB1T", name: "电池", kind: .battery),
+        SMCTemperatureProbe(key: "Tm0P", name: "内存", kind: .memory),
+        SMCTemperatureProbe(key: "Tm0S", name: "内存控制器", kind: .memory),
+        SMCTemperatureProbe(key: "Ts0P", name: "SSD", kind: .storage),
+        SMCTemperatureProbe(key: "Ts0S", name: "SSD 控制器", kind: .storage),
+        SMCTemperatureProbe(key: "TW0P", name: "Wi-Fi", kind: .wireless),
+        SMCTemperatureProbe(key: "TW0T", name: "无线模块", kind: .wireless),
+        SMCTemperatureProbe(key: "TA0P", name: "环境", kind: .ambient)
+    ]
+}
+
 private final class AppleSiliconTemperatureReader: @unchecked Sendable {
     nonisolated(unsafe) private let client: IOHIDEventSystemClient
     nonisolated(unsafe) private var services: [HIDSensorService] = []
@@ -133,18 +156,43 @@ private final class AppleSiliconTemperatureReader: @unchecked Sendable {
 
     private nonisolated func sensorKind(for product: String) -> SensorKind {
         let lowered = product.lowercased()
+        let normalized = lowered.replacingOccurrences(of: "_", with: " ")
 
+        if normalized.contains("gpu") || product.contains("TP1g") || product.contains("TP2g") || product.contains("TP3g") {
+            return .gpu
+        }
+        if normalized.contains("performance core")
+            || normalized.contains("p-core")
+            || normalized.contains("pcore")
+            || product.contains("TP0s")
+            || product.contains("TP1s")
+        {
+            return .performanceCPU
+        }
+        if normalized.contains("efficiency core")
+            || normalized.contains("e-core")
+            || normalized.contains("ecore")
+            || product.contains("TP2s")
+        {
+            return .efficiencyCPU
+        }
+        if normalized.contains("cpu core average")
+            || normalized.contains("cpu average")
+            || normalized.contains("cpu")
+        {
+            return .performanceCPU
+        }
         if lowered.contains("battery") {
             return .battery
         }
-        if product.contains("TP0s") || product.contains("TP1s") {
-            return .performanceCPU
+        if lowered.contains("airport") || lowered.contains("wifi") || lowered.contains("wlan") || lowered.contains("wireless") {
+            return .wireless
         }
-        if product.contains("TP2s") {
-            return .efficiencyCPU
+        if lowered.contains("ssd") || lowered.contains("nand") || lowered.contains("storage") || lowered.contains("nvme") {
+            return .storage
         }
-        if product.contains("TP1g") || product.contains("TP2g") || product.contains("TP3g") {
-            return .gpu
+        if lowered.contains("dram") || lowered.contains("memory") || lowered.contains("mem") {
+            return .memory
         }
         if product.contains("tcal") {
             return .ambient
@@ -153,6 +201,18 @@ private final class AppleSiliconTemperatureReader: @unchecked Sendable {
     }
 
     private nonisolated func displayName(for product: String, ordinal: Int) -> String {
+        let lowered = product.lowercased()
+
+        if lowered.contains("cpu core average") || lowered.contains("cpu average") {
+            return "CPU 平均"
+        }
+        if lowered.contains("performance core") || lowered.contains("p-core") || lowered.contains("pcore") {
+            return "性能核 \(ordinal)"
+        }
+        if lowered.contains("efficiency core") || lowered.contains("e-core") || lowered.contains("ecore") {
+            return "效率核 \(ordinal)"
+        }
+
         switch sensorKind(for: product) {
         case .performanceCPU:
             return "性能簇 \(ordinal)"
@@ -162,6 +222,12 @@ private final class AppleSiliconTemperatureReader: @unchecked Sendable {
             return "GPU 簇 \(ordinal)"
         case .battery:
             return ordinal == 1 ? "电池" : "电池 \(ordinal)"
+        case .memory:
+            return ordinal == 1 ? "内存" : "内存 \(ordinal)"
+        case .storage:
+            return ordinal == 1 ? "SSD" : "SSD \(ordinal)"
+        case .wireless:
+            return ordinal == 1 ? "Wi-Fi" : "Wi-Fi \(ordinal)"
         case .ambient:
             return "环境 / 校准"
         case .raw:
@@ -179,10 +245,16 @@ private final class AppleSiliconTemperatureReader: @unchecked Sendable {
             2
         case .battery:
             3
-        case .ambient:
+        case .memory:
             4
-        case .raw:
+        case .storage:
             5
+        case .wireless:
+            6
+        case .ambient:
+            7
+        case .raw:
+            8
         }
     }
 }
@@ -197,7 +269,7 @@ actor AppleSiliconHardwareProvider: HardwareProvider {
             case .direct:
                 "主进程直连 AppleSMC"
             case .privilegedHelper:
-                "特权 helper"
+                "辅助控件"
             }
         }
     }
@@ -213,7 +285,10 @@ actor AppleSiliconHardwareProvider: HardwareProvider {
 
     func discover() async throws -> HardwareInventory {
         temperatureReader.refreshServices()
-        let sensors = temperatureReader.sensorDescriptors()
+        let sensors = mergedSensorDescriptors(
+            primary: temperatureReader.sensorDescriptors(),
+            secondary: discoverSMCTemperatureDescriptors()
+        )
         let fans = try discoverFans(using: sensors)
         await ensureControlTransportResolved(using: fans)
         let capability = FanCapabilityResolver.resolve(
@@ -241,7 +316,10 @@ actor AppleSiliconHardwareProvider: HardwareProvider {
             lastHardwareError = message
             throw HardwareControlError.readFailed(message)
         }
-        let sensors = temperatureReader.sensorReadings()
+        let sensors = mergedSensorReadings(
+            primary: temperatureReader.sensorReadings(),
+            secondary: readSMCTemperatureReadings()
+        )
         let hottest = sensors.map(\.celsius).max()
 
         return ThermalSnapshot(
@@ -381,6 +459,95 @@ actor AppleSiliconHardwareProvider: HardwareProvider {
         }
 
         await resolveControlTransport(using: fans)
+    }
+
+    private func discoverSMCTemperatureDescriptors() -> [SensorDescriptor] {
+        guard let smc else {
+            return []
+        }
+
+        return SMCTemperatureCatalog.probes.compactMap { probe in
+            guard
+                let value = try? smc.read(key: probe.key),
+                normalizedTemperature(from: value) != nil
+            else {
+                return nil
+            }
+
+            return SensorDescriptor(
+                id: "smc-\(probe.key)",
+                name: probe.name,
+                kind: probe.kind,
+                rawKey: probe.key
+            )
+        }
+    }
+
+    private func readSMCTemperatureReadings() -> [SensorReading] {
+        guard let smc else {
+            return []
+        }
+
+        return SMCTemperatureCatalog.probes.compactMap { probe in
+            guard
+                let value = try? smc.read(key: probe.key),
+                let celsius = normalizedTemperature(from: value)
+            else {
+                return nil
+            }
+
+            return SensorReading(id: "smc-\(probe.key)", celsius: celsius)
+        }
+    }
+
+    private func normalizedTemperature(from value: SMCDecodedValue) -> Double? {
+        if let floatValue = value.floatValue {
+            let temperature = Double(floatValue)
+            guard temperature.isFinite, temperature > -40, temperature < 140 else {
+                return nil
+            }
+            return temperature
+        }
+
+        if let intValue = value.intValue {
+            let temperature = Double(intValue)
+            guard temperature.isFinite, temperature > -40, temperature < 140 else {
+                return nil
+            }
+            return temperature
+        }
+
+        return nil
+    }
+
+    private func mergedSensorDescriptors(
+        primary: [SensorDescriptor],
+        secondary: [SensorDescriptor]
+    ) -> [SensorDescriptor] {
+        var merged = primary
+        var knownIDs = Set(primary.map(\.id))
+
+        for descriptor in secondary where !knownIDs.contains(descriptor.id) {
+            merged.append(descriptor)
+            knownIDs.insert(descriptor.id)
+        }
+
+        return merged
+    }
+
+    private func mergedSensorReadings(
+        primary: [SensorReading],
+        secondary: [SensorReading]
+    ) -> [SensorReading] {
+        var merged = primary
+        var knownIDs = Set(primary.map(\.id))
+
+        for reading in secondary where !knownIDs.contains(reading.id) {
+            merged.append(reading)
+            knownIDs.insert(reading.id)
+        }
+
+        return merged
     }
 
     private func discoverFans(using sensors: [SensorDescriptor]) throws -> [FanDescriptor] {

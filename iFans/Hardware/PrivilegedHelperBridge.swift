@@ -76,7 +76,7 @@ enum PrivilegedHelperServiceDefinition {
     }
 
     nonisolated static func versionMismatchMessage() -> String {
-        "检测到旧版 \(AppBrand.helperDisplayName)，请重新执行 \(reinstallCommand) 安装当前版本后再试。"
+        "检测到旧版 \(AppBrand.helperDisplayName)，请重新安装当前版本后再试。"
     }
 
     nonisolated static func isCompatibilityReinstallMessage(_ message: String) -> Bool {
@@ -84,7 +84,19 @@ enum PrivilegedHelperServiceDefinition {
     }
 
     nonisolated static func installerUnavailableMessage() -> String {
-        "当前构建没有找到可执行的 helper 安装器。请回到工程目录后执行 \(reinstallCommand)，或者使用带内置安装器的发行版。"
+        "当前构建缺少内置辅助控件安装器，请重新下载完整版本后再试。"
+    }
+
+    nonisolated static func helperUnavailableMessage(for fanCount: Int? = nil) -> String {
+        if let fanCount {
+            return "已发现 \(fanCount) 个可控制风扇，但当前没有可用的 \(AppBrand.helperControllerDisplayName)。请点击下方按钮安装或重装辅助控件。"
+        }
+
+        return "当前没有可用的 \(AppBrand.helperControllerDisplayName)。请点击下方按钮安装或重装辅助控件。"
+    }
+
+    nonisolated static func postInstallVerificationFailureMessage() -> String {
+        "\(AppBrand.helperDisplayName) 已尝试安装，但控制通道仍未建立。请再次点击“重装辅助控件”；如果问题仍然存在，请到设置页查看诊断信息。"
     }
 
     nonisolated static func locateInstallerScriptURL() -> URL? {
@@ -142,7 +154,18 @@ enum PrivilegedHelperServiceDefinition {
     }
 
     private nonisolated static func isInstallationGuidanceMessage(_ message: String) -> Bool {
-        message.contains("helper") && message.contains(reinstallCommand)
+        (message.contains("辅助控件")
+            || message.contains(AppBrand.helperDisplayName)
+            || message.contains(AppBrand.helperControllerDisplayName)
+            || message.contains("协议不兼容"))
+            && (
+                message.contains("安装")
+                    || message.contains("重装")
+                    || message.contains("旧版")
+                    || message.contains("控制通道")
+                    || message.contains("没有可用的")
+                    || message.contains("协议不兼容")
+            )
     }
 
     private nonisolated static func installerCandidateURLs() -> [URL] {
@@ -163,12 +186,40 @@ enum PrivilegedHelperServiceDefinition {
     }
 
     private nonisolated static func installerCandidateDirectories() -> [URL] {
-        [
-            URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true),
+        var directories = [
             Bundle.main.resourceURL,
-            Bundle.main.sharedSupportURL
+            Bundle.main.sharedSupportURL,
+            URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true)
         ]
         .compactMap { $0?.standardizedFileURL }
+
+        directories.append(contentsOf: ancestorDirectories(of: Bundle.main.bundleURL, maxDepth: 7))
+        directories.append(contentsOf: ancestorDirectories(
+            of: URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true),
+            maxDepth: 5
+        ))
+
+        return directories
+    }
+
+    private nonisolated static func ancestorDirectories(of url: URL, maxDepth: Int) -> [URL] {
+        guard maxDepth > 0 else {
+            return []
+        }
+
+        var results = [URL]()
+        var current = url.standardizedFileURL
+
+        for _ in 0..<maxDepth {
+            let parent = current.deletingLastPathComponent().standardizedFileURL
+            guard parent.path != current.path else {
+                break
+            }
+            results.append(parent)
+            current = parent
+        }
+
+        return results
     }
 }
 
@@ -179,9 +230,9 @@ nonisolated enum PrivilegedHelperInstallKind: Equatable, Sendable {
     var title: String {
         switch self {
         case .install:
-            "安装 helper"
+            "安装辅助控件"
         case .reinstall:
-            "重装 helper"
+            "重装辅助控件"
         }
     }
 
@@ -238,10 +289,24 @@ protocol PrivilegedHelperInstalling: Sendable {
 }
 
 struct LivePrivilegedHelperInstaller: PrivilegedHelperInstalling {
+    private nonisolated struct InstallExecutionResult: Sendable {
+        let output: String
+        let errorOutput: String
+
+        var combinedOutput: String {
+            [errorOutput, output]
+                .filter { !$0.isEmpty }
+                .joined(separator: "\n")
+        }
+    }
+
+    private nonisolated static let installVerificationAttempts = 8
+    private nonisolated static let installVerificationDelay: Duration = .milliseconds(250)
+
     nonisolated init() {}
 
     nonisolated func installPrivilegedHelper() async throws {
-        try await withCheckedThrowingContinuation { continuation in
+        let executionResult: InstallExecutionResult = try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 do {
                     guard let scriptURL = PrivilegedHelperServiceDefinition.locateInstallerScriptURL() else {
@@ -249,17 +314,19 @@ struct LivePrivilegedHelperInstaller: PrivilegedHelperInstalling {
                             PrivilegedHelperServiceDefinition.installerUnavailableMessage()
                         )
                     }
-                    try Self.executePrivilegedInstall(scriptURL: scriptURL)
-                    continuation.resume()
+                    let executionResult = try Self.executePrivilegedInstall(scriptURL: scriptURL)
+                    continuation.resume(returning: executionResult)
                 } catch {
                     continuation.resume(throwing: error)
                 }
             }
         }
+
+        try await Self.verifyInstalledHelper(after: executionResult)
     }
 
-    private nonisolated static func executePrivilegedInstall(scriptURL: URL) throws {
-        let command = "/bin/zsh -lc \(shellQuoted(scriptURL.path))"
+    private nonisolated static func executePrivilegedInstall(scriptURL: URL) throws -> InstallExecutionResult {
+        let command = "/bin/zsh \(shellQuoted(scriptURL.path))"
         let appleScript = "do shell script \(appleScriptLiteral(command)) with administrator privileges"
 
         let process = Process()
@@ -286,10 +353,11 @@ struct LivePrivilegedHelperInstaller: PrivilegedHelperInstalling {
         )?
         .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
+        let executionResult = InstallExecutionResult(output: output, errorOutput: errorOutput)
+
         guard process.terminationStatus == 0 else {
-            let combinedOutput = [errorOutput, output]
-                .filter { !$0.isEmpty }
-                .joined(separator: "\n")
+            let combinedOutput = executionResult.combinedOutput
+            let userVisibleOutput = sanitizedInstallerOutput(combinedOutput, scriptURL: scriptURL)
 
             if combinedOutput.localizedCaseInsensitiveContains("user canceled")
                 || combinedOutput.contains("(-128)")
@@ -297,12 +365,187 @@ struct LivePrivilegedHelperInstaller: PrivilegedHelperInstalling {
                 throw PrivilegedHelperInstallerError.cancelled
             }
 
+            if combinedOutput.localizedCaseInsensitiveContains("no such file or directory")
+                || combinedOutput.localizedCaseInsensitiveContains("command not found")
+            {
+                throw PrivilegedHelperInstallerError.installerUnavailable(
+                    PrivilegedHelperServiceDefinition.installerUnavailableMessage()
+                )
+            }
+
             throw PrivilegedHelperInstallerError.installationFailed(
-                combinedOutput.isEmpty
+                userVisibleOutput.isEmpty
                     ? "\(AppBrand.helperDisplayName) 安装失败，请稍后重试。"
-                    : combinedOutput
+                    : userVisibleOutput
             )
         }
+
+        if !executionResult.combinedOutput.isEmpty {
+            NSLog("Privileged helper installer output: %@", executionResult.combinedOutput)
+        }
+
+        return executionResult
+    }
+
+    private nonisolated static func verifyInstalledHelper(
+        after executionResult: InstallExecutionResult
+    ) async throws {
+        var lastError: Error?
+
+        for attempt in 0..<installVerificationAttempts {
+            do {
+                _ = try await PrivilegedHelperClient().handshake()
+                return
+            } catch {
+                lastError = error
+            }
+
+            if attempt < installVerificationAttempts - 1 {
+                try? await Task.sleep(for: installVerificationDelay)
+            }
+        }
+
+        let failureMessage = postInstallFailureMessage(
+            lastError: lastError,
+            executionResult: executionResult
+        )
+        NSLog("Privileged helper post-install verification failed: %@", failureMessage)
+        throw PrivilegedHelperInstallerError.installationFailed(failureMessage)
+    }
+
+    private nonisolated static func postInstallFailureMessage(
+        lastError: Error?,
+        executionResult: InstallExecutionResult
+    ) -> String {
+        var lines = [
+            PrivilegedHelperServiceDefinition.postInstallVerificationFailureMessage()
+        ]
+
+        if let lastErrorDescription = lastError?.localizedDescription,
+           !lastErrorDescription.isEmpty {
+            lines.append("最近错误：\(summarizeDiagnostic(lastErrorDescription))")
+        }
+
+        if let disabledLine = disabledServiceLine() {
+            lines.append("系统状态：launchctl 仍将服务标记为 disabled（\(disabledLine)）")
+        } else if let launchctlState = installedServiceStateDescription() {
+            lines.append("系统状态：\(launchctlState)")
+        }
+
+        if !executionResult.combinedOutput.isEmpty {
+            lines.append("安装日志：\(summarizeDiagnostic(sanitizedInstallerOutput(executionResult.combinedOutput, scriptURL: nil)))")
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+    private nonisolated static func disabledServiceLine() -> String? {
+        let result = runCommand(
+            executableURL: URL(fileURLWithPath: "/bin/launchctl"),
+            arguments: ["print-disabled", "system"]
+        )
+        guard !result.output.isEmpty else {
+            return nil
+        }
+
+        return result.output
+            .split(whereSeparator: \.isNewline)
+            .map { String($0).trimmingCharacters(in: .whitespaces) }
+            .first { $0.contains("\"\(PrivilegedHelperServiceDefinition.machServiceName)\"") }
+    }
+
+    private nonisolated static func installedServiceStateDescription() -> String? {
+        let result = runCommand(
+            executableURL: URL(fileURLWithPath: "/bin/launchctl"),
+            arguments: ["print", "system/\(PrivilegedHelperServiceDefinition.machServiceName)"]
+        )
+
+        if result.status == 0 {
+            return "launchctl 已加载 \(AppBrand.helperDisplayName)，但握手仍然失败。"
+        }
+
+        guard !result.output.isEmpty else {
+            return nil
+        }
+
+        return summarizeDiagnostic(result.output)
+    }
+
+    private nonisolated static func runCommand(
+        executableURL: URL,
+        arguments: [String]
+    ) -> (status: Int32, output: String) {
+        let process = Process()
+        process.executableURL = executableURL
+        process.arguments = arguments
+
+        let stdout = Pipe()
+        let stderr = Pipe()
+        process.standardOutput = stdout
+        process.standardError = stderr
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+        } catch {
+            return (-1, error.localizedDescription)
+        }
+
+        let output = [
+            String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? "",
+            String(data: stdout.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        ]
+        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        .filter { !$0.isEmpty }
+        .joined(separator: "\n")
+
+        return (process.terminationStatus, output)
+    }
+
+    private nonisolated static func summarizeDiagnostic(
+        _ text: String,
+        maxLength: Int = 400
+    ) -> String {
+        let collapsed = text
+            .split(whereSeparator: \.isNewline)
+            .map { String($0).trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " | ")
+
+        guard collapsed.count > maxLength else {
+            return collapsed
+        }
+
+        return String(collapsed.prefix(maxLength)) + "..."
+    }
+
+    private nonisolated static func sanitizedInstallerOutput(
+        _ text: String,
+        scriptURL: URL?
+    ) -> String {
+        guard !text.isEmpty else {
+            return text
+        }
+
+        if text.localizedCaseInsensitiveContains("no such file or directory")
+            || text.localizedCaseInsensitiveContains("command not found")
+        {
+            return PrivilegedHelperServiceDefinition.installerUnavailableMessage()
+        }
+
+        var sanitized = text
+
+        if let scriptPath = scriptURL?.path, !scriptPath.isEmpty {
+            sanitized = sanitized.replacingOccurrences(of: scriptPath, with: "内置辅助控件安装器")
+        }
+
+        sanitized = sanitized.replacingOccurrences(
+            of: #"/Users/\S+"#,
+            with: "内置辅助控件安装器",
+            options: .regularExpression
+        )
+
+        return sanitized
     }
 
     private nonisolated static func shellQuoted(_ string: String) -> String {
@@ -491,11 +734,11 @@ final class PrivilegedHelperClient: @unchecked Sendable {
     }
 
     nonisolated func unavailableMessage(for fanCount: Int) -> String {
-        "已发现 \(fanCount) 个可控制风扇，但当前没有可用的 \(AppBrand.helperControllerDisplayName)。请先执行 \(PrivilegedHelperServiceDefinition.reinstallCommand) 安装并启动当前 helper。"
+        PrivilegedHelperServiceDefinition.helperUnavailableMessage(for: fanCount)
     }
 
     private nonisolated func missingHelperMessage() -> String {
-        "当前没有可用的 \(AppBrand.helperControllerDisplayName)。请先执行 \(PrivilegedHelperServiceDefinition.reinstallCommand) 安装并启动当前 helper。"
+        PrivilegedHelperServiceDefinition.helperUnavailableMessage()
     }
 
     private nonisolated func perform(
@@ -546,9 +789,6 @@ final class PrivilegedHelperClient: @unchecked Sendable {
         case .invalidReply:
             return .versionMismatch(PrivilegedHelperServiceDefinition.versionMismatchMessage())
         case .helperUnavailable:
-            if PrivilegedHelperServiceDefinition.isInstalledHelperPresent() {
-                return .versionMismatch(PrivilegedHelperServiceDefinition.versionMismatchMessage())
-            }
             return .helperUnavailable(unavailableMessage)
         }
     }
@@ -566,7 +806,7 @@ final class PrivilegedHelperClient: @unchecked Sendable {
 
             let fail: (Error) -> Void = { error in
                 connection.invalidate()
-                let message = "\(AppBrand.helperControllerDisplayName) 不可用。请先安装并启动 helper。底层错误：\(error.localizedDescription)"
+                let message = "\(AppBrand.helperControllerDisplayName) 不可用。请先安装并启动辅助控件。底层错误：\(error.localizedDescription)"
                 continuation.resume(
                     throwing: PrivilegedHelperClientError.helperUnavailable(message)
                 )

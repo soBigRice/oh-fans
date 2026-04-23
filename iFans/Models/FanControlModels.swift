@@ -2,8 +2,8 @@ import Foundation
 
 enum AppBrand {
     nonisolated static let displayName = "oh fans"
-    nonisolated static let helperDisplayName = "\(displayName) 特权 helper"
-    nonisolated static let helperControllerDisplayName = "\(displayName) 特权控制助手"
+    nonisolated static let helperDisplayName = "\(displayName) 辅助控件"
+    nonisolated static let helperControllerDisplayName = helperDisplayName
     nonisolated static let menuBarAccessibilityLabel = "\(displayName) 菜单栏"
     nonisolated static let authorName = "soBigRice"
     nonisolated static let authorProfileURL = URL(string: "https://github.com/soBigRice")!
@@ -82,6 +82,9 @@ enum SensorKind: String, Sendable {
     case efficiencyCPU
     case gpu
     case battery
+    case memory
+    case storage
+    case wireless
     case ambient
     case raw
 }

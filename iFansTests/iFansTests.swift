@@ -110,7 +110,7 @@ struct iFansTests {
     }
 
     @Test func helperInstallActionUsesInstallForMissingHelperMessage() {
-        let message = "当前没有可用的 \(AppBrand.helperControllerDisplayName)。请先执行 \(PrivilegedHelperServiceDefinition.reinstallCommand) 安装并启动当前 helper。"
+        let message = "当前没有可用的 \(AppBrand.helperControllerDisplayName)。请先执行 \(PrivilegedHelperServiceDefinition.reinstallCommand) 安装并启动辅助控件。"
         let action = PrivilegedHelperServiceDefinition.installAction(
             for: message,
             installedHelperPresent: false
@@ -128,6 +128,17 @@ struct iFansTests {
 
         #expect(action?.kind == .reinstall)
         #expect(action?.reason == PrivilegedHelperServiceDefinition.versionMismatchMessage())
+    }
+
+    @Test func helperInstallActionUsesReinstallForPostInstallVerificationFailure() {
+        let message = "\(AppBrand.helperDisplayName) 安装命令已执行，但安装后仍未建立控制通道。请重新执行 \(PrivilegedHelperServiceDefinition.reinstallCommand) 查看完整输出。"
+        let action = PrivilegedHelperServiceDefinition.installAction(
+            for: message,
+            installedHelperPresent: true
+        )
+
+        #expect(action?.kind == .reinstall)
+        #expect(action?.reason == message)
     }
 
     @Test func locateInstallerScriptURLPrefersExplicitEnvironmentOverride() throws {
@@ -203,6 +214,28 @@ struct iFansTests {
 
         #expect(model.helperInstallAction?.kind == .reinstall)
         #expect(model.helperInstallStatusText == PrivilegedHelperServiceDefinition.versionMismatchMessage())
+    }
+
+    @MainActor
+    @Test func appModelSurfacesInstallerDiagnosticsAfterFailedHelperInstall() async {
+        let provider = MockHardwareProvider(
+            capability: .readOnly(
+                "当前没有可用的 \(AppBrand.helperControllerDisplayName)。请先执行 \(PrivilegedHelperServiceDefinition.reinstallCommand) 安装并启动辅助控件。"
+            )
+        )
+        let defaults = UserDefaults(suiteName: "iFansTests-\(UUID().uuidString)")!
+        let failureMessage = "\(AppBrand.helperDisplayName) 安装命令已执行，但安装后仍未建立控制通道。请重新执行 \(PrivilegedHelperServiceDefinition.reinstallCommand) 查看完整输出。"
+        let model = AppModel(
+            provider: provider,
+            defaults: defaults,
+            helperInstaller: MockPrivilegedHelperInstaller(failureMessage: failureMessage)
+        )
+
+        await model.loadInitialState(applyStoredMode: false)
+        await model.installPrivilegedHelper()
+
+        #expect(model.statusMessage == failureMessage)
+        #expect(model.isInstallingHelper == false)
     }
 
     @MainActor
@@ -464,5 +497,15 @@ actor MockHardwareProvider: HardwareProvider {
 
     func restoreCallCount() -> Int {
         restoreCalls
+    }
+}
+
+struct MockPrivilegedHelperInstaller: PrivilegedHelperInstalling {
+    let failureMessage: String?
+
+    nonisolated func installPrivilegedHelper() async throws {
+        if let failureMessage {
+            throw PrivilegedHelperInstallerError.installationFailed(failureMessage)
+        }
     }
 }

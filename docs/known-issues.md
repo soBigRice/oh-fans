@@ -1,5 +1,35 @@
 # iFans 已知问题与规避记录
 
+## 2026-04-23 未签名 DMG 从 GitHub 下载后，macOS 可能把 app 或 DMG 拦成“无法验证开发者”“已损坏”或直接打不开
+- 现象：本地构建出来的 unsigned `oh fans.app` 明明可用，但用户从 GitHub 下载 `.dmg` 后，双击 app 可能提示“无法打开，因为无法验证开发者”、`oh fans.app`“已损坏，无法打开”，或者看起来像双击没反应。
+- 影响：如果发布包里只有 app 没有随包说明，普通用户通常会把这个问题误判成“包坏了”或“项目根本不能用”，测试反馈也会被 Gatekeeper 噪音淹没。
+- 解决：unsigned DMG 必须随包附带 README，至少写清楚三条处理路径：右键 `Applications/oh fans.app` -> “打开”；“系统设置” -> “隐私与安全性”里的“仍要打开”；终端执行 `xattr -dr com.apple.quarantine "/Applications/oh fans.app"`。如果连 DMG 本身都打不开，再补一条对 DMG 路径执行同样 `xattr` 的备用命令。
+- 规避：后续只要继续发布未签名测试包，不要只上传 `.dmg` 就结束；必须把“打不开怎么办”README 一起塞进 DMG，且不要建议用户全局关闭 Gatekeeper。
+
+## 2026-04-23 用 Icon Composer 导出的 macOS 图标替换工程资源时，不能只换 `AppIcon.appiconset`
+- 现象：把 Icon Composer 导出的 `Default` 图标只缩放塞进 `AppIcon.appiconset` 后，构建虽然能过，但运行中的 Dock 图标仍会继续读取 `RuntimeLightAppIcon` / `RuntimeDarkAppIcon`，看起来像“主图标换了，App 里还是旧图标”。
+- 影响：Finder、Spotlight 和运行中的 Dock 图标会出现新旧不一致，深色模式下尤其明显，排查时也容易误判成 Xcode 资源缓存。
+- 解决：当前工程继续让 `AppIcon.appiconset` 使用 `icon-macOS-Default-1024x1024@1x.png` 生成固定尺寸；`RuntimeLightAppIcon.imageset` 同步替换为 `Default`；`RuntimeDarkAppIcon.imageset` 同步替换为 `Dark`。如果后续全面切到 Icon Composer `.icon` 原生流程，再一起移除运行时覆盖逻辑。
+- 规避：后续替换图标前，先搜 `applicationIconImage`、`RuntimeLightAppIcon`、`RuntimeDarkAppIcon`；确认主图标和运行时 Dock 图标两套资源都已经同步更新。
+
+## 2026-04-23 macOS `AppIcon.appiconset` 就算写了 `dark` appearance，编译产物也可能只保留默认图标
+- 现象：给 macOS 的 `AppIcon.appiconset` 条目补上 `appearances = [{ appearance = luminosity, value = dark }]` 以后，`actool` 仍然可以顺利编译，但导出的 `Assets.car` / `AppIcon.icns` 只保留默认图标，dark 版本会被静默丢掉。
+- 影响：看起来工程里已经配好了浅色 / 深色 app icon，实际 Finder、Dock 或 Spotlight 仍然只会显示默认图，属于“资源改了但系统并没切换”的假完成。
+- 解决：传统 `.appiconset` 继续只放默认图标；如果项目需要真正随系统外观切换，要么改用 Xcode 26 的 Icon Composer `.icon` 流程，要么像当前项目这样在运行时基于 `NSApp.effectiveAppearance` 覆盖 `applicationIconImage`。
+- 规避：后续凡是给 macOS app icon 做 light/dark 双版本，不要只看 `Contents.json` 和 `actool` 通过就结束；至少要检查编译产物里是否真的包含 dark rendition，或者直接做一次运行态图标验证。
+
+## 2026-04-23 helper 已安装但被 `launchctl` 标记成 disabled 时，单跑 `bootstrap` 可能直接报 `Input/output error (5)` 或 `Service is disabled (119)`
+- 现象：系统里明明已经有 `/Library/PrivilegedHelperTools/com.sobigrice.iFans.helper` 和 LaunchDaemon plist，但 app 内“重装 helper”仍然返回 `Bootstrap failed: 5: Input/output error (5)`、`Service is disabled (119)`，或者用户输入管理员密码后界面像“没反应”，同时 `launchctl print system/com.sobigrice.iFans.helper` 查不到 service。
+- 影响：界面会退回监控模式，控制通道显示“未建立”；如果安装脚本把 `launchctl enable` 的失败静默吞掉，UI 只会表现成“输完密码但没有结果”，排查方向也容易被带偏。
+- 解决：安装脚本不能只做 `bootout -> enable -> bootstrap -> kickstart`，还要显式验证 disabled override 已经清掉；如果 `launchctl print-disabled system` 里仍然命中 `com.sobigrice.iFans.helper => disabled`，就必须立即退出并把诊断抛回 UI，而不是继续静默 `bootstrap`。App 侧在授权脚本返回后，也要再做一次 helper 握手校验，保证“安装成功”和“控制通道已上线”是同一件事。
+- 规避：后续只要 helper 文件在、但 launchd system 域查不到 service，就先执行 `launchctl print-disabled system | rg com.sobigrice.iFans.helper`；如果命中 disabled，优先怀疑安装链路没有真正清掉 disabled override，不要继续把它当成单纯“旧版本不兼容”。
+
+## 2026-04-23 选中态图标底色如果继续走 `Material` 会偏灰
+- 现象：模式按钮的选中态虽然已经叠了 tint，但底层仍然使用 `thinMaterial` 时，浅色模式下看起来会发灰，做不到真正的纯白底。
+- 影响：当设计明确要求“选中图标底色为纯白，暗黑模式为纯黑”时，界面会一直夹着一层材质灰感，和预期不一致。
+- 解决：在 `CompactSurfaceBackground` 里把 `.activeSegment` 从材质分支剥离出来，浅色直接填充 `Color.white`，暗色直接填充 `Color.black`，只保留独立描边。
+- 规避：后续只要某个选中态卡片或按钮需要纯净实色底，不要继续依赖 `Material + tint` 叠加；应单独走颜色分支并按 `colorScheme` 切换。
+
 ## 2026-04-23 改 Bundle Identifier 时不能把 `.xcodeproj` 误建到源码目录里
 - 现象：为了改 app 的 `Bundle Identifier`，如果误在 `iFans/Models/` 下面又生成了一份 `iFans.xcodeproj`，再把它引用回主工程，`xcodebuild` 虽然还是走 `iFans` scheme，但 target 的 `SRCROOT` 会漂移到 `.../iFans/Models`。
 - 影响：所有依赖仓库根目录的构建脚本都会直接炸掉，比如 `Bundle Helper Installer` 会去找并不存在的 `iFans/Models/script/prepare_helper_bundle.sh`，表现成“改了个包名后突然编译失败”。

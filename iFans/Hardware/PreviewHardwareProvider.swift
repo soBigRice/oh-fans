@@ -91,7 +91,7 @@ actor PreviewHardwareProvider: HardwareProvider {
     func diagnostics() async -> HardwareDiagnostics {
         HardwareDiagnostics(
             fanCount: fans.count,
-            controlChannel: scenario == .controllable ? "预览 helper" : "预览监控",
+            controlChannel: scenario == .controllable ? "预览辅助控件" : "预览监控",
             lastError: scenario == .controllable ? nil : capability.message
         )
     }
