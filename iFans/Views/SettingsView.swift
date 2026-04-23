@@ -4,8 +4,8 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
-    @AppStorage("launchAtLoginEnabled") private var launchAtLoginEnabled = false
-    @AppStorage("dockIconHidden") private var dockIconHidden = false
+    @AppStorage(AppPreferenceKey.launchAtLoginEnabled) private var launchAtLoginEnabled = false
+    @AppStorage(AppPreferenceKey.dockIconHidden) private var dockIconHidden = false
     @State private var launchAtLoginError: String?
 
     var body: some View {
@@ -148,15 +148,17 @@ struct SettingsView: View {
         Binding(
             get: { launchAtLoginEnabled },
             set: { enabled in
-                launchAtLoginEnabled = enabled
+                let previousValue = launchAtLoginEnabled
                 do {
                     if enabled {
                         try SMAppService.mainApp.register()
                     } else {
                         try SMAppService.mainApp.unregister()
                     }
+                    launchAtLoginEnabled = enabled
                     launchAtLoginError = nil
                 } catch {
+                    launchAtLoginEnabled = previousValue
                     launchAtLoginError = error.localizedDescription
                 }
             }

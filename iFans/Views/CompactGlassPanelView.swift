@@ -148,15 +148,6 @@ enum CompactGlassPanelDensity: Equatable {
         }
     }
 
-    var footerLineLimit: Int {
-        switch self {
-        case .window:
-            1
-        case .menuBar:
-            1
-        }
-    }
-
     var usesColoredIcons: Bool {
         true
     }
@@ -167,15 +158,6 @@ enum CompactGlassPanelDensity: Equatable {
             0.82
         case .menuBar:
             1
-        }
-    }
-
-    var primaryButtonControlSize: ControlSize {
-        switch self {
-        case .window:
-            .regular
-        case .menuBar:
-            .small
         }
     }
 
@@ -215,21 +197,65 @@ struct CompactPanelAction {
     let action: () -> Void
 }
 
+private struct LiquidDragState {
+    var startDate: Date?
+    var selectionMode: FanMode?
+    var isDragging = false
+    var indicatorCenterX: CGFloat?
+    var lastSampleX: CGFloat?
+    var lastSampleTime: Date?
+    var stretchX: CGFloat = 1
+    var stretchY: CGFloat = 1
+    var tiltDegrees: Double = 0
+
+    mutating func beginIfNeeded(now: Date, currentMode: FanMode) {
+        guard startDate == nil else { return }
+        startDate = now
+        selectionMode = currentMode
+        lastSampleTime = now
+    }
+
+    mutating func updateDynamics(currentX: CGFloat, now: Date) {
+        defer {
+            lastSampleX = currentX
+            lastSampleTime = now
+        }
+
+        guard let previousX = lastSampleX,
+              let previousTime = lastSampleTime else {
+            return
+        }
+
+        let deltaTime = max(0.001, now.timeIntervalSince(previousTime))
+        let deltaX = currentX - previousX
+        let speed = abs(deltaX) / deltaTime
+        let normalized = min(1, speed / 900)
+
+        stretchX = 1 + (normalized * 0.42)
+        stretchY = 1 - (normalized * 0.22)
+        tiltDegrees = Double(max(-10, min(10, (deltaX / 18) * 3.2)))
+    }
+
+    mutating func reset() {
+        startDate = nil
+        selectionMode = nil
+        isDragging = false
+        indicatorCenterX = nil
+        lastSampleX = nil
+        lastSampleTime = nil
+        stretchX = 1
+        stretchY = 1
+        tiltDegrees = 0
+    }
+}
+
 struct CompactGlassPanelView: View {
     let model: AppModel
     let density: CompactGlassPanelDensity
     let primaryAction: CompactPanelAction
     @Environment(\.colorScheme) private var colorScheme
     @Namespace private var modeSelectionNamespace
-    @State private var liquidDragStartDate: Date?
-    @State private var liquidSelectionMode: FanMode?
-    @State private var isLiquidDragging = false
-    @State private var liquidIndicatorCenterX: CGFloat?
-    @State private var liquidLastSampleX: CGFloat?
-    @State private var liquidLastSampleTime: Date?
-    @State private var liquidStretchX: CGFloat = 1
-    @State private var liquidStretchY: CGFloat = 1
-    @State private var liquidTiltDegrees: Double = 0
+    @State private var liquidDrag = LiquidDragState()
 
     private let modeBarHorizontalPadding: CGFloat = 3
     private let modeBarItemSpacing: CGFloat = 4
@@ -349,7 +375,7 @@ struct CompactGlassPanelView: View {
 
     private var modeBarSection: some View {
         GeometryReader { proxy in
-            let visualSelectedMode = liquidSelectionMode ?? model.selectedMode
+            let visualSelectedMode = liquidDrag.selectionMode ?? model.selectedMode
             let metrics = modeBarMetrics(totalWidth: proxy.size.width)
 
             GlassEffectContainer(spacing: density == .window ? 20 : 16) {
@@ -358,9 +384,9 @@ struct CompactGlassPanelView: View {
                         CompactModeButton(
                             mode: mode,
                             isSelected: visualSelectedMode == mode,
-                            showsSelectionBackground: !isLiquidDragging,
+                            showsSelectionBackground: !liquidDrag.isDragging,
                             isEnabled: model.canControl || mode == .systemAuto,
-                            isInteractionLocked: isLiquidDragging,
+                            isInteractionLocked: liquidDrag.isDragging,
                             tint: tint(for: mode),
                             density: density,
                             appearanceStyle: model.appearanceStyle,
@@ -373,9 +399,9 @@ struct CompactGlassPanelView: View {
             }
             .contentShape(Rectangle())
             .simultaneousGesture(modeBarLiquidGesture(totalWidth: proxy.size.width))
-            .animation(.snappy(duration: 0.22, extraBounce: 0.08), value: liquidSelectionMode)
-            .scaleEffect(isLiquidDragging ? 1.01 : 1)
-            .animation(.spring(response: 0.24, dampingFraction: 0.78), value: isLiquidDragging)
+            .animation(.snappy(duration: 0.22, extraBounce: 0.08), value: liquidDrag.selectionMode)
+            .scaleEffect(liquidDrag.isDragging ? 1.01 : 1)
+            .animation(.spring(response: 0.24, dampingFraction: 0.78), value: liquidDrag.isDragging)
             .padding(modeBarHorizontalPadding)
             .frame(maxWidth: .infinity, minHeight: density.modeBarHeight, maxHeight: density.modeBarHeight)
             .background {
@@ -387,7 +413,7 @@ struct CompactGlassPanelView: View {
                 )
             }
             .overlay(alignment: .leading) {
-                if isLiquidDragging, let liquidIndicatorCenterX {
+                if liquidDrag.isDragging, let liquidIndicatorCenterX = liquidDrag.indicatorCenterX {
                     let indicatorWidth = metrics.segmentWidth + 2
                     CompactSurfaceBackground(
                         cornerRadius: density.segmentCornerRadius,
@@ -396,15 +422,15 @@ struct CompactGlassPanelView: View {
                         appearanceStyle: model.appearanceStyle
                     )
                     .frame(width: indicatorWidth, height: density.segmentHeight)
-                    .scaleEffect(x: liquidStretchX, y: liquidStretchY)
-                    .rotationEffect(.degrees(liquidTiltDegrees))
+                    .scaleEffect(x: liquidDrag.stretchX, y: liquidDrag.stretchY)
+                    .rotationEffect(.degrees(liquidDrag.tiltDegrees))
                     .offset(x: liquidIndicatorCenterX - (indicatorWidth / 2))
                     .shadow(color: tint(for: visualSelectedMode).opacity(0.3), radius: 8, y: 1.5)
                     .allowsHitTesting(false)
                     .animation(.interactiveSpring(response: 0.22, dampingFraction: 0.82), value: liquidIndicatorCenterX)
-                    .animation(.interactiveSpring(response: 0.15, dampingFraction: 0.68), value: liquidStretchX)
-                    .animation(.interactiveSpring(response: 0.15, dampingFraction: 0.68), value: liquidStretchY)
-                    .animation(.interactiveSpring(response: 0.15, dampingFraction: 0.7), value: liquidTiltDegrees)
+                    .animation(.interactiveSpring(response: 0.15, dampingFraction: 0.68), value: liquidDrag.stretchX)
+                    .animation(.interactiveSpring(response: 0.15, dampingFraction: 0.68), value: liquidDrag.stretchY)
+                    .animation(.interactiveSpring(response: 0.15, dampingFraction: 0.7), value: liquidDrag.tiltDegrees)
                 }
             }
         }
@@ -470,7 +496,7 @@ struct CompactGlassPanelView: View {
             Text(footerStatusText)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .lineLimit(density.footerLineLimit)
+                .lineLimit(1)
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityIdentifier("status.current")
@@ -679,13 +705,14 @@ struct CompactGlassPanelView: View {
     }
 
     private var fanSummaryText: String {
-        switch displayFanRows.filter({ $0.style == .reading }).count {
+        let readingCount = displayFanRows.filter { $0.style == .reading }.count
+        switch readingCount {
         case 0:
             return "暂无有效读数"
         case 1:
             return "1 个风扇"
         default:
-            return "\(displayFanRows.filter { $0.style == .reading }.count) 个风扇"
+            return "\(readingCount) 个风扇"
         }
     }
 
@@ -713,9 +740,7 @@ struct CompactGlassPanelView: View {
             return "Wi-Fi"
         case .ambient:
             return "环境"
-        case .raw:
-            return "传感器\(fallbackIndex)"
-        case nil:
+        case .raw, nil:
             return "传感器\(fallbackIndex)"
         }
     }
@@ -791,26 +816,22 @@ struct CompactGlassPanelView: View {
 
     private func handleModeBarDragChanged(_ value: DragGesture.Value, totalWidth: CGFloat) {
         let now = Date()
-        if liquidDragStartDate == nil {
-            liquidDragStartDate = now
-            liquidSelectionMode = model.selectedMode
-            liquidLastSampleTime = now
-        }
+        liquidDrag.beginIfNeeded(now: now, currentMode: model.selectedMode)
 
-        guard let startDate = liquidDragStartDate else {
+        guard let startDate = liquidDrag.startDate else {
             return
         }
 
-        if !isLiquidDragging {
+        if !liquidDrag.isDragging {
             let elapsed = now.timeIntervalSince(startDate)
             guard elapsed >= 0.2 else {
                 return
             }
-            isLiquidDragging = true
+            liquidDrag.isDragging = true
         }
 
         let clampedX = clampedModeBarX(for: value.location.x, totalWidth: totalWidth)
-        liquidIndicatorCenterX = clampedX
+        liquidDrag.indicatorCenterX = clampedX
         updateLiquidDynamics(currentX: clampedX, now: now)
 
         guard let hoveredMode = mode(at: value.location.x, totalWidth: totalWidth),
@@ -818,30 +839,22 @@ struct CompactGlassPanelView: View {
             return
         }
 
-        if liquidSelectionMode != hoveredMode {
+        if liquidDrag.selectionMode != hoveredMode {
             withAnimation(.snappy(duration: 0.12, extraBounce: 0.04)) {
-                liquidSelectionMode = hoveredMode
+                liquidDrag.selectionMode = hoveredMode
             }
         }
     }
 
     private func handleModeBarDragEnded() {
         defer {
-            liquidDragStartDate = nil
             withAnimation(.snappy(duration: 0.16, extraBounce: 0.04)) {
-                isLiquidDragging = false
-                liquidSelectionMode = nil
-                liquidIndicatorCenterX = nil
-                liquidLastSampleX = nil
-                liquidLastSampleTime = nil
-                liquidStretchX = 1
-                liquidStretchY = 1
-                liquidTiltDegrees = 0
+                liquidDrag.reset()
             }
         }
 
-        guard isLiquidDragging,
-              let targetMode = liquidSelectionMode,
+        guard liquidDrag.isDragging,
+              let targetMode = liquidDrag.selectionMode,
               targetMode != model.selectedMode,
               canSelectMode(targetMode) else {
             return
@@ -895,24 +908,7 @@ struct CompactGlassPanelView: View {
     }
 
     private func updateLiquidDynamics(currentX: CGFloat, now: Date) {
-        defer {
-            liquidLastSampleX = currentX
-            liquidLastSampleTime = now
-        }
-
-        guard let previousX = liquidLastSampleX,
-              let previousTime = liquidLastSampleTime else {
-            return
-        }
-
-        let deltaTime = max(0.001, now.timeIntervalSince(previousTime))
-        let deltaX = currentX - previousX
-        let speed = abs(deltaX) / deltaTime
-        let normalized = min(1, speed / 900)
-
-        liquidStretchX = 1 + (normalized * 0.42)
-        liquidStretchY = 1 - (normalized * 0.22)
-        liquidTiltDegrees = Double(max(-10, min(10, (deltaX / 18) * 3.2)))
+        liquidDrag.updateDynamics(currentX: currentX, now: now)
     }
 
     private func canSelectMode(_ mode: FanMode) -> Bool {
@@ -1123,11 +1119,6 @@ private struct CompactSurfaceBackground: View {
         }
     }
 
-    private var activeGlass: Glass {
-        Glass.regular.tint(activeTint.opacity(density == .window ? 0.062 : 0.055))
-            .interactive(true)
-    }
-
     private var liquidDragGlass: Glass {
         Glass.clear
             .tint(activeTint.opacity(density == .window ? 0.016 : 0.013))
@@ -1156,17 +1147,6 @@ private struct CompactSurfaceBackground: View {
         colorScheme == .dark
             ? Color.white.opacity(density == .window ? 0.3 : 0.26)
             : Color.white.opacity(density == .window ? 0.9 : 0.82)
-    }
-
-    private var material: Material {
-        switch style {
-        case .segmentBar:
-            .ultraThinMaterial
-        case .badge, .activeSegment, .liquidDrag:
-            .thinMaterial
-        case .pressedSegment:
-            .ultraThinMaterial
-        }
     }
 
     private var highlightOpacity: Double {
@@ -1247,10 +1227,6 @@ private struct CompactSurfaceBackground: View {
                 ? Color.white.opacity(density == .window ? 0.09 : 0.08)
                 : Color.white.opacity(density == .window ? 0.52 : 0.45)
         }
-    }
-
-    private var selectedSegmentFill: Color {
-        colorScheme == .dark ? .black : .white
     }
 
     private var activeTint: Color {
@@ -1429,37 +1405,6 @@ private struct WindowDragHandle: NSViewRepresentable {
     }
 }
 
-private struct CompactMetricTile: View {
-    let title: String
-    let value: String
-    let symbol: String
-    let accent: Color
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: symbol)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(accent)
-                .frame(width: 14)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-
-                Text(value)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.76)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
 private struct CompactTemperatureMetric: Identifiable {
     let id: String
     let title: String
@@ -1498,67 +1443,6 @@ private struct CompactInlineMetricRow: View {
                 .lineLimit(1)
         }
         .padding(.vertical, density == .window ? 2 : 1)
-    }
-}
-
-private struct CompactInlineMetricChip: View {
-    let metric: CompactTemperatureMetric
-    let density: CompactGlassPanelDensity
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
-
-        HStack(spacing: 7) {
-            Image(systemName: metric.symbol)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(metric.accent.opacity(density.coloredIconOpacity))
-                .frame(width: 12)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(metric.title)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-
-                Text(metric.value)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .monospacedDigit()
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background {
-            Color.clear
-                .glassEffect(chipGlass, in: shape)
-                .overlay {
-                    shape.fill(chipOverlayColor)
-                }
-                .overlay {
-                    shape.strokeBorder(chipBorderColor, lineWidth: 0.7)
-                }
-        }
-    }
-
-    private var chipGlass: Glass {
-        Glass.regular.tint(metric.accent.opacity(density == .window ? 0.055 : 0.048))
-    }
-
-    private var chipOverlayColor: Color {
-        if colorScheme == .dark {
-            return Color.white.opacity(density == .window ? 0.012 : 0.01)
-        }
-        return Color.black.opacity(density == .window ? 0.06 : 0.052)
-    }
-
-    private var chipBorderColor: Color {
-        if colorScheme == .dark {
-            return Color.white.opacity(density == .window ? 0.09 : 0.08)
-        }
-        return Color.black.opacity(density == .window ? 0.13 : 0.115)
     }
 }
 

@@ -32,7 +32,7 @@ struct MenuBarPanelView: View {
             systemImage: "macwindow",
             accessibilityIdentifier: "menu.open-main-window"
         ) {
-            let shouldHideDockIcon = UserDefaults.standard.bool(forKey: "dockIconHidden")
+            let shouldHideDockIcon = UserDefaults.standard.bool(forKey: AppPreferenceKey.dockIconHidden)
             _ = NSApp.setActivationPolicy(shouldHideDockIcon ? .accessory : .regular)
             openWindow(id: WindowIdentifier.main.rawValue)
             NSApp.activate(ignoringOtherApps: true)

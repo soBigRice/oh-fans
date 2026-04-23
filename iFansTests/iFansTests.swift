@@ -244,7 +244,7 @@ struct iFansTests {
         let defaults = UserDefaults(suiteName: "iFansTests-\(UUID().uuidString)")!
         let model = AppModel(provider: provider, defaults: defaults)
 
-        defaults.set(FanMode.balanced.rawValue, forKey: "selectedFanMode")
+        defaults.set(FanMode.balanced.rawValue, forKey: AppPreferenceKey.selectedFanMode)
 
         await model.loadInitialState(applyStoredMode: true)
 
@@ -262,7 +262,7 @@ struct iFansTests {
             ]
         )
         let defaults = UserDefaults(suiteName: "iFansTests-\(UUID().uuidString)")!
-        defaults.set(FanMode.performance.rawValue, forKey: "selectedFanMode")
+        defaults.set(FanMode.performance.rawValue, forKey: AppPreferenceKey.selectedFanMode)
         let model = AppModel(
             provider: provider,
             defaults: defaults,
@@ -280,7 +280,7 @@ struct iFansTests {
     @Test func appModelFallsBackToAutoAfterRepeatedFailures() async {
         let provider = MockHardwareProvider(capability: .controllable, failSnapshotsAfterFirstSuccess: true)
         let defaults = UserDefaults(suiteName: "iFansTests-\(UUID().uuidString)")!
-        defaults.set(FanMode.performance.rawValue, forKey: "selectedFanMode")
+        defaults.set(FanMode.performance.rawValue, forKey: AppPreferenceKey.selectedFanMode)
         let model = AppModel(provider: provider, defaults: defaults)
 
         await model.loadInitialState(applyStoredMode: false)
@@ -338,7 +338,7 @@ struct iFansTests {
     @Test func prepareForTerminationRestoresAutomaticAndClearsPersistedMode() async {
         let provider = MockHardwareProvider(capability: .controllable)
         let defaults = UserDefaults(suiteName: "iFansTests-\(UUID().uuidString)")!
-        defaults.set(FanMode.performance.rawValue, forKey: "selectedFanMode")
+        defaults.set(FanMode.performance.rawValue, forKey: AppPreferenceKey.selectedFanMode)
         let model = AppModel(provider: provider, defaults: defaults)
 
         await model.loadInitialState(applyStoredMode: false)
@@ -346,7 +346,7 @@ struct iFansTests {
         await model.prepareForTermination(timeout: .milliseconds(50))
 
         #expect(model.selectedMode == .systemAuto)
-        #expect(defaults.string(forKey: "selectedFanMode") == FanMode.systemAuto.rawValue)
+        #expect(defaults.string(forKey: AppPreferenceKey.selectedFanMode) == FanMode.systemAuto.rawValue)
         #expect(model.statusMessage == nil)
         #expect(await provider.restoreCallCount() == 1)
     }
@@ -358,14 +358,14 @@ struct iFansTests {
             restoreResult: .failed("helper restore failed")
         )
         let defaults = UserDefaults(suiteName: "iFansTests-\(UUID().uuidString)")!
-        defaults.set(FanMode.balanced.rawValue, forKey: "selectedFanMode")
+        defaults.set(FanMode.balanced.rawValue, forKey: AppPreferenceKey.selectedFanMode)
         let model = AppModel(provider: provider, defaults: defaults)
 
         await model.loadInitialState(applyStoredMode: false)
         await model.prepareForTermination(timeout: .milliseconds(50))
 
         #expect(model.selectedMode == .systemAuto)
-        #expect(defaults.string(forKey: "selectedFanMode") == FanMode.systemAuto.rawValue)
+        #expect(defaults.string(forKey: AppPreferenceKey.selectedFanMode) == FanMode.systemAuto.rawValue)
         #expect(model.statusMessage == "退出时恢复系统自动模式失败：helper restore failed")
         #expect(model.lastHardwareErrorMessage == "helper restore failed")
     }
@@ -377,7 +377,7 @@ struct iFansTests {
             restoreDelay: .seconds(1)
         )
         let defaults = UserDefaults(suiteName: "iFansTests-\(UUID().uuidString)")!
-        defaults.set(FanMode.quiet.rawValue, forKey: "selectedFanMode")
+        defaults.set(FanMode.quiet.rawValue, forKey: AppPreferenceKey.selectedFanMode)
         let model = AppModel(provider: provider, defaults: defaults)
         let clock = ContinuousClock()
 
@@ -388,7 +388,7 @@ struct iFansTests {
         }
 
         #expect(model.selectedMode == .systemAuto)
-        #expect(defaults.string(forKey: "selectedFanMode") == FanMode.systemAuto.rawValue)
+        #expect(defaults.string(forKey: AppPreferenceKey.selectedFanMode) == FanMode.systemAuto.rawValue)
         #expect(model.statusMessage == "退出时恢复系统自动模式超时，将继续退出。")
         #expect(model.lastHardwareErrorMessage == "退出时恢复系统自动模式超时，将继续退出。")
         #expect(elapsed < .seconds(1))

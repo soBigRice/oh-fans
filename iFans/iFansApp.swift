@@ -43,7 +43,7 @@ struct iFansApp: App {
     }
 
     private static func applyDockIconVisibilityPreference(using defaults: UserDefaults = .standard) {
-        let isDockIconHidden = defaults.bool(forKey: "dockIconHidden")
+        let isDockIconHidden = defaults.bool(forKey: AppPreferenceKey.dockIconHidden)
         _ = NSApp.setActivationPolicy(isDockIconHidden ? .accessory : .regular)
     }
 
@@ -221,7 +221,7 @@ private final class DockVisibilityController {
     }
 
     private func applyPolicyFromDefaults() {
-        let isDockIconHidden = UserDefaults.standard.bool(forKey: "dockIconHidden")
+        let isDockIconHidden = UserDefaults.standard.bool(forKey: AppPreferenceKey.dockIconHidden)
         _ = NSApp.setActivationPolicy(isDockIconHidden ? .accessory : .regular)
     }
 }
