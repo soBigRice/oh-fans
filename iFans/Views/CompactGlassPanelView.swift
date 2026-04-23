@@ -226,14 +226,15 @@ private struct LiquidDragState {
             return
         }
 
-        let deltaTime = max(0.001, now.timeIntervalSince(previousTime))
+        let deltaTime = max(LiquidDragTuning.minimumDeltaTime, now.timeIntervalSince(previousTime))
         let deltaX = currentX - previousX
         let speed = abs(deltaX) / deltaTime
-        let normalized = min(1, speed / 900)
+        let normalized = min(1, speed / LiquidDragTuning.speedNormalization)
 
-        stretchX = 1 + (normalized * 0.42)
-        stretchY = 1 - (normalized * 0.22)
-        tiltDegrees = Double(max(-10, min(10, (deltaX / 18) * 3.2)))
+        stretchX = 1 + (normalized * LiquidDragTuning.stretchXScale)
+        stretchY = 1 - (normalized * LiquidDragTuning.stretchYScale)
+        let rawTilt = (deltaX / LiquidDragTuning.tiltDistanceDivisor) * LiquidDragTuning.tiltMultiplier
+        tiltDegrees = Double(max(-LiquidDragTuning.maxTiltDegrees, min(LiquidDragTuning.maxTiltDegrees, rawTilt)))
     }
 
     mutating func reset() {
@@ -247,6 +248,19 @@ private struct LiquidDragState {
         stretchY = 1
         tiltDegrees = 0
     }
+}
+
+private enum LiquidDragTuning {
+    static let activationHoldDuration: TimeInterval = 0.2
+    static let minimumDeltaTime: TimeInterval = 0.001
+    static let speedNormalization: CGFloat = 900
+    static let stretchXScale: CGFloat = 0.42
+    static let stretchYScale: CGFloat = 0.22
+    static let tiltDistanceDivisor: CGFloat = 18
+    static let tiltMultiplier: CGFloat = 3.2
+    static let maxTiltDegrees: CGFloat = 10
+    static let modeChangeAnimation = Animation.snappy(duration: 0.12, extraBounce: 0.04)
+    static let resetAnimation = Animation.snappy(duration: 0.16, extraBounce: 0.04)
 }
 
 struct CompactGlassPanelView: View {
@@ -824,7 +838,7 @@ struct CompactGlassPanelView: View {
 
         if !liquidDrag.isDragging {
             let elapsed = now.timeIntervalSince(startDate)
-            guard elapsed >= 0.2 else {
+            guard elapsed >= LiquidDragTuning.activationHoldDuration else {
                 return
             }
             liquidDrag.isDragging = true
@@ -840,7 +854,7 @@ struct CompactGlassPanelView: View {
         }
 
         if liquidDrag.selectionMode != hoveredMode {
-            withAnimation(.snappy(duration: 0.12, extraBounce: 0.04)) {
+            withAnimation(LiquidDragTuning.modeChangeAnimation) {
                 liquidDrag.selectionMode = hoveredMode
             }
         }
@@ -848,7 +862,7 @@ struct CompactGlassPanelView: View {
 
     private func handleModeBarDragEnded() {
         defer {
-            withAnimation(.snappy(duration: 0.16, extraBounce: 0.04)) {
+            withAnimation(LiquidDragTuning.resetAnimation) {
                 liquidDrag.reset()
             }
         }

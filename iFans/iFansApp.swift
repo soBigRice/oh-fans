@@ -9,6 +9,21 @@ import AppKit
 import ApplicationServices
 import SwiftUI
 
+@MainActor
+enum DockIconVisibilityPolicy {
+    static func isHidden(defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: AppPreferenceKey.dockIconHidden)
+    }
+
+    static func apply(defaults: UserDefaults = .standard) {
+        apply(isHidden: isHidden(defaults: defaults))
+    }
+
+    static func apply(isHidden: Bool) {
+        _ = NSApp.setActivationPolicy(isHidden ? .accessory : .regular)
+    }
+}
+
 @main
 struct iFansApp: App {
     @NSApplicationDelegateAdaptor(AppTerminationCoordinator.self) private var terminationCoordinator
@@ -42,11 +57,6 @@ struct iFansApp: App {
         return .standard
     }
 
-    private static func applyDockIconVisibilityPreference(using defaults: UserDefaults = .standard) {
-        let isDockIconHidden = defaults.bool(forKey: AppPreferenceKey.dockIconHidden)
-        _ = NSApp.setActivationPolicy(isDockIconHidden ? .accessory : .regular)
-    }
-
     init() {
         let runtimeEnvironment = AppRuntimeEnvironment.current()
         let arguments = ProcessInfo.processInfo.arguments
@@ -72,7 +82,7 @@ struct iFansApp: App {
         let iconController = appIconController
         let dockController = dockVisibilityController
         Task { @MainActor [appModel, iconController, dockController] in
-            Self.applyDockIconVisibilityPreference()
+            DockIconVisibilityPolicy.apply()
             dockController.start()
             iconController.start()
             appModel.start()
@@ -221,8 +231,7 @@ private final class DockVisibilityController {
     }
 
     private func applyPolicyFromDefaults() {
-        let isDockIconHidden = UserDefaults.standard.bool(forKey: AppPreferenceKey.dockIconHidden)
-        _ = NSApp.setActivationPolicy(isDockIconHidden ? .accessory : .regular)
+        DockIconVisibilityPolicy.apply()
     }
 }
 

@@ -185,7 +185,7 @@ struct SettingsView: View {
     }
 
     private func applyDockIconVisibility(isHidden: Bool) {
-        _ = NSApp.setActivationPolicy(isHidden ? .accessory : .regular)
+        DockIconVisibilityPolicy.apply(isHidden: isHidden)
         if !isHidden {
             NSApp.activate(ignoringOtherApps: true)
         }
