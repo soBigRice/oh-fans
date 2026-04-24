@@ -40,6 +40,22 @@ struct SettingsView: View {
                 }
             }
 
+            Section("温度提醒") {
+                Toggle("启用温度阈值提醒", isOn: bindingForTemperatureAlertEnabled)
+
+                Stepper(
+                    "提醒阈值：\(Int(model.temperatureAlertThreshold.rounded()))°C",
+                    value: bindingForTemperatureAlertThreshold,
+                    in: 50...110,
+                    step: 1
+                )
+                .disabled(!model.temperatureAlertEnabled)
+
+                Text("温度达到阈值时提醒一次；降回阈值以下后会重新武装，下次再次超过会再提醒一次。")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("辅助控件") {
                 Text(model.helperInstallStatusText)
                     .foregroundStyle(.secondary)
@@ -180,6 +196,24 @@ struct SettingsView: View {
             set: { hidden in
                 dockIconHidden = hidden
                 applyDockIconVisibility(isHidden: hidden)
+            }
+        )
+    }
+
+    private var bindingForTemperatureAlertEnabled: Binding<Bool> {
+        Binding(
+            get: { model.temperatureAlertEnabled },
+            set: { enabled in
+                model.setTemperatureAlertEnabled(enabled)
+            }
+        )
+    }
+
+    private var bindingForTemperatureAlertThreshold: Binding<Double> {
+        Binding(
+            get: { model.temperatureAlertThreshold },
+            set: { threshold in
+                model.setTemperatureAlertThreshold(threshold)
             }
         )
     }

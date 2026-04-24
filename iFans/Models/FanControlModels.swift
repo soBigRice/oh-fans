@@ -37,6 +37,8 @@ enum AppPreferenceKey {
     nonisolated static let panelAppearanceStyle = "panelAppearanceStyle"
     nonisolated static let launchAtLoginEnabled = "launchAtLoginEnabled"
     nonisolated static let dockIconHidden = "dockIconHidden"
+    nonisolated static let temperatureAlertEnabled = "temperatureAlertEnabled"
+    nonisolated static let temperatureAlertThreshold = "temperatureAlertThreshold"
 }
 
 enum FanMode: String, CaseIterable, Identifiable, Sendable {

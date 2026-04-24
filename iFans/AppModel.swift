@@ -2,6 +2,7 @@ import Darwin
 import Foundation
 import Observation
 import Security
+import UserNotifications
 
 enum AppAppearanceStyle: String, CaseIterable, Identifiable, Sendable {
     case highTransparency
@@ -92,6 +93,7 @@ final class AppModel {
     @ObservationIgnored private let startupControlRetryAttempts: Int
     @ObservationIgnored private let startupControlRetryDelay: Duration
     @ObservationIgnored private var isPreparingForTermination = false
+    @ObservationIgnored private var hasSentTemperatureAlertForCurrentHotSpan = false
 
     var inventory: HardwareInventory?
     var hardwareDiagnostics = HardwareDiagnostics()
@@ -106,6 +108,8 @@ final class AppModel {
     var updateStatusMessage: String?
     var latestVersionTag: String?
     var updateDownloadURL: URL?
+    var temperatureAlertEnabled: Bool
+    var temperatureAlertThreshold: Double
 
     init(
         provider: any HardwareProvider,
@@ -123,6 +127,8 @@ final class AppModel {
         self.startupControlRetryDelay = startupControlRetryDelay
         self.selectedMode = Self.persistedSelectedMode(using: defaults)
         self.appearanceStyle = Self.persistedAppearanceStyle(using: defaults)
+        self.temperatureAlertEnabled = Self.persistedTemperatureAlertEnabled(using: defaults)
+        self.temperatureAlertThreshold = Self.persistedTemperatureAlertThreshold(using: defaults)
     }
 
     deinit {
@@ -260,6 +266,7 @@ final class AppModel {
             latestSnapshot = snapshot
             inventory?.capability = snapshot.capability
             await refreshDiagnostics()
+            evaluateTemperatureAlert(with: snapshot.hottestTemp)
 
             if let reason = SafetyPolicy.forceAutomaticReason(
                 mode: selectedMode,
@@ -365,6 +372,27 @@ final class AppModel {
         defaults.set(style.rawValue, forKey: AppPreferenceKey.panelAppearanceStyle)
     }
 
+    func setTemperatureAlertEnabled(_ enabled: Bool) {
+        guard temperatureAlertEnabled != enabled else { return }
+        temperatureAlertEnabled = enabled
+        defaults.set(enabled, forKey: AppPreferenceKey.temperatureAlertEnabled)
+        hasSentTemperatureAlertForCurrentHotSpan = false
+
+        if enabled {
+            Task {
+                _ = await requestNotificationAuthorizationIfNeeded()
+            }
+        }
+    }
+
+    func setTemperatureAlertThreshold(_ threshold: Double) {
+        let normalized = Self.normalizedTemperatureAlertThreshold(threshold)
+        guard temperatureAlertThreshold != normalized else { return }
+        temperatureAlertThreshold = normalized
+        defaults.set(normalized, forKey: AppPreferenceKey.temperatureAlertThreshold)
+        hasSentTemperatureAlertForCurrentHotSpan = false
+    }
+
     var hasUpdateAvailable: Bool {
         updateDownloadURL != nil
     }
@@ -423,6 +451,21 @@ final class AppModel {
     private nonisolated static func persistedAppearanceStyle(using defaults: UserDefaults) -> AppAppearanceStyle {
         AppAppearanceStyle(rawValue: defaults.string(forKey: AppPreferenceKey.panelAppearanceStyle) ?? "")
             ?? .normal
+    }
+
+    private nonisolated static func persistedTemperatureAlertEnabled(using defaults: UserDefaults) -> Bool {
+        defaults.object(forKey: AppPreferenceKey.temperatureAlertEnabled) as? Bool ?? false
+    }
+
+    private nonisolated static func persistedTemperatureAlertThreshold(using defaults: UserDefaults) -> Double {
+        guard defaults.object(forKey: AppPreferenceKey.temperatureAlertThreshold) != nil else {
+            return 85
+        }
+        return normalizedTemperatureAlertThreshold(defaults.double(forKey: AppPreferenceKey.temperatureAlertThreshold))
+    }
+
+    private nonisolated static func normalizedTemperatureAlertThreshold(_ value: Double) -> Double {
+        min(110, max(50, value.rounded()))
     }
 
     private nonisolated static func currentVersionString(bundle: Bundle = .main) -> String {
@@ -550,5 +593,65 @@ final class AppModel {
             group.cancelAll()
             return outcome
         }
+    }
+
+    private func evaluateTemperatureAlert(with hottestTemp: Double?) {
+        guard temperatureAlertEnabled else {
+            hasSentTemperatureAlertForCurrentHotSpan = false
+            return
+        }
+
+        guard let hottestTemp else {
+            hasSentTemperatureAlertForCurrentHotSpan = false
+            return
+        }
+
+        if hottestTemp < temperatureAlertThreshold {
+            hasSentTemperatureAlertForCurrentHotSpan = false
+            return
+        }
+
+        guard !hasSentTemperatureAlertForCurrentHotSpan else {
+            return
+        }
+        hasSentTemperatureAlertForCurrentHotSpan = true
+
+        Task {
+            await sendTemperatureAlertNotification(currentTemp: hottestTemp)
+        }
+    }
+
+    private func requestNotificationAuthorizationIfNeeded() async -> Bool {
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+        switch settings.authorizationStatus {
+        case .authorized, .provisional, .ephemeral:
+            return true
+        case .notDetermined:
+            return (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
+        case .denied:
+            return false
+        @unknown default:
+            return false
+        }
+    }
+
+    private func sendTemperatureAlertNotification(currentTemp: Double) async {
+        guard await requestNotificationAuthorizationIfNeeded() else {
+            return
+        }
+
+        let content = UNMutableNotificationContent()
+        content.title = "温度提醒"
+        content.body = "当前最高温度达到 \(currentTemp.temperatureText)，已超过阈值 \(temperatureAlertThreshold.temperatureText)。"
+        content.sound = .default
+
+        let request = UNNotificationRequest(
+            identifier: "temperature-alert-\(Int(Date().timeIntervalSince1970))",
+            content: content,
+            trigger: nil
+        )
+
+        try? await UNUserNotificationCenter.current().add(request)
     }
 }

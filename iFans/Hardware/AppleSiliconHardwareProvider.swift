@@ -320,7 +320,10 @@ actor AppleSiliconHardwareProvider: HardwareProvider {
             primary: temperatureReader.sensorReadings(),
             secondary: readSMCTemperatureReadings()
         )
-        let hottest = sensors.map(\.celsius).max()
+        let hottest = hottestRealtimeTemperature(
+            from: sensors,
+            descriptors: inventory.sensors
+        )
 
         return ThermalSnapshot(
             timestamp: .now,
@@ -548,6 +551,35 @@ actor AppleSiliconHardwareProvider: HardwareProvider {
         }
 
         return merged
+    }
+
+    private func hottestRealtimeTemperature(
+        from readings: [SensorReading],
+        descriptors: [SensorDescriptor]
+    ) -> Double? {
+        guard !readings.isEmpty else {
+            return nil
+        }
+
+        let descriptorByID = Dictionary(uniqueKeysWithValues: descriptors.map { ($0.id, $0) })
+        let realtimeReadings = readings.filter { reading in
+            guard let descriptor = descriptorByID[reading.id] else {
+                return true
+            }
+
+            if descriptor.kind == .ambient {
+                return false
+            }
+
+            let rawKey = descriptor.rawKey?.lowercased() ?? ""
+            if rawKey.contains("tcal") || rawKey.contains("calibration") {
+                return false
+            }
+
+            return true
+        }
+
+        return realtimeReadings.map(\.celsius).max() ?? readings.map(\.celsius).max()
     }
 
     private func discoverFans(using sensors: [SensorDescriptor]) throws -> [FanDescriptor] {
