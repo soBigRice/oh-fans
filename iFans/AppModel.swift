@@ -3,6 +3,9 @@ import Foundation
 import Observation
 import Security
 import UserNotifications
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 enum AppAppearanceStyle: String, CaseIterable, Identifiable, Sendable {
     case highTransparency
@@ -89,6 +92,7 @@ final class AppModel {
     let runtimeEnvironment: AppRuntimeEnvironment
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let helperInstaller: any PrivilegedHelperInstalling
+    @ObservationIgnored private let widgetSnapshotStore = WidgetSnapshotStore()
     @ObservationIgnored private var pollTask: Task<Void, Never>?
     @ObservationIgnored private let startupControlRetryAttempts: Int
     @ObservationIgnored private let startupControlRetryDelay: Duration
@@ -108,6 +112,7 @@ final class AppModel {
     var updateStatusMessage: String?
     var latestVersionTag: String?
     var updateDownloadURL: URL?
+    var highTransparencyWhiteTextEnabled: Bool
     var temperatureAlertEnabled: Bool
     var temperatureAlertThreshold: Double
 
@@ -127,6 +132,7 @@ final class AppModel {
         self.startupControlRetryDelay = startupControlRetryDelay
         self.selectedMode = Self.persistedSelectedMode(using: defaults)
         self.appearanceStyle = Self.persistedAppearanceStyle(using: defaults)
+        self.highTransparencyWhiteTextEnabled = Self.persistedHighTransparencyWhiteTextEnabled(using: defaults)
         self.temperatureAlertEnabled = Self.persistedTemperatureAlertEnabled(using: defaults)
         self.temperatureAlertThreshold = Self.persistedTemperatureAlertThreshold(using: defaults)
     }
@@ -267,6 +273,7 @@ final class AppModel {
             inventory?.capability = snapshot.capability
             await refreshDiagnostics()
             evaluateTemperatureAlert(with: snapshot.hottestTemp)
+            publishWidgetSnapshot(from: snapshot)
 
             if let reason = SafetyPolicy.forceAutomaticReason(
                 mode: selectedMode,
@@ -372,6 +379,12 @@ final class AppModel {
         defaults.set(style.rawValue, forKey: AppPreferenceKey.panelAppearanceStyle)
     }
 
+    func setHighTransparencyWhiteTextEnabled(_ enabled: Bool) {
+        guard highTransparencyWhiteTextEnabled != enabled else { return }
+        highTransparencyWhiteTextEnabled = enabled
+        defaults.set(enabled, forKey: AppPreferenceKey.highTransparencyWhiteTextEnabled)
+    }
+
     func setTemperatureAlertEnabled(_ enabled: Bool) {
         guard temperatureAlertEnabled != enabled else { return }
         temperatureAlertEnabled = enabled
@@ -451,6 +464,10 @@ final class AppModel {
     private nonisolated static func persistedAppearanceStyle(using defaults: UserDefaults) -> AppAppearanceStyle {
         AppAppearanceStyle(rawValue: defaults.string(forKey: AppPreferenceKey.panelAppearanceStyle) ?? "")
             ?? .normal
+    }
+
+    private nonisolated static func persistedHighTransparencyWhiteTextEnabled(using defaults: UserDefaults) -> Bool {
+        defaults.object(forKey: AppPreferenceKey.highTransparencyWhiteTextEnabled) as? Bool ?? true
     }
 
     private nonisolated static func persistedTemperatureAlertEnabled(using defaults: UserDefaults) -> Bool {
@@ -549,6 +566,7 @@ final class AppModel {
             latestSnapshot = snapshot
             inventory?.capability = snapshot.capability
             await refreshDiagnostics()
+            publishWidgetSnapshot(from: snapshot)
         } catch {
             inventory?.capability = .readOnly("恢复系统自动模式后无法重新获取快照，请稍后重试。")
             await refreshDiagnostics()
@@ -557,6 +575,28 @@ final class AppModel {
 
     private func refreshDiagnostics() async {
         hardwareDiagnostics = await provider.diagnostics()
+    }
+
+    private func publishWidgetSnapshot(from snapshot: ThermalSnapshot) {
+        let fanSummary: String
+        if snapshot.fans.isEmpty {
+            fanSummary = "暂无风扇数据"
+        } else {
+            fanSummary = "\(snapshot.fans.count) 个风扇在线"
+        }
+
+        let payload = WidgetSnapshotPayload(
+            modeTitle: selectedMode.title,
+            statusText: statusMessage ?? capabilityMessage,
+            hottestTemperature: snapshot.hottestTemp,
+            fanSummary: fanSummary,
+            updatedAt: snapshot.timestamp
+        )
+        widgetSnapshotStore.save(payload)
+
+#if canImport(WidgetKit)
+        WidgetCenter.shared.reloadTimelines(ofKind: "iFansStatusWidget")
+#endif
     }
 
     private func mergedStatusMessage(

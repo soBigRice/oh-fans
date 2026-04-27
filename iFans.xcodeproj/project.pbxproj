@@ -6,7 +6,20 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		8B15BE002F9F141300249A0E /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8B15BDFF2F9F141300249A0E /* WidgetKit.framework */; };
+		8B15BE022F9F141300249A0E /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8B15BE012F9F141300249A0E /* SwiftUI.framework */; };
+		8B15BE112F9F141400249A0E /* i​Fans​WidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 8B15BDFD2F9F141300249A0E /* i​Fans​WidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
+		8B15BE0F2F9F141400249A0E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8B4660D52F9265E800EAF93E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8B15BDFC2F9F141300249A0E;
+			remoteInfo = "i​Fans​WidgetsExtension";
+		};
 		8B4660EB2F9265EA00EAF93E /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 8B4660D52F9265E800EAF93E /* Project object */;
@@ -23,13 +36,49 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		8B15BE122F9F141400249A0E /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				8B15BE112F9F141400249A0E /* i​Fans​WidgetsExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		8B15BDFD2F9F141300249A0E /* i​Fans​WidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "i​Fans​WidgetsExtension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		8B15BDFF2F9F141300249A0E /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		8B15BE012F9F141300249A0E /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		8B15BE172F9F154400249A0E /* i​Fans​WidgetsExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "i​Fans​WidgetsExtension.entitlements"; sourceTree = "<group>"; };
 		8B4660DD2F9265E800EAF93E /* oh fans.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "oh fans.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		8B4660EA2F9265EA00EAF93E /* iFansTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = iFansTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8B4660F42F9265EA00EAF93E /* iFansUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = iFansUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		8B15BE152F9F141400249A0E /* Exceptions for "i​Fans​Widgets" folder in "i​Fans​WidgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 8B15BDFC2F9F141300249A0E /* i​Fans​WidgetsExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		8B15BE032F9F141300249A0E /* i​Fans​Widgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				8B15BE152F9F141400249A0E /* Exceptions for "i​Fans​Widgets" folder in "i​Fans​WidgetsExtension" target */,
+			);
+			path = "i​Fans​Widgets";
+			sourceTree = "<group>";
+		};
 		8B4660DF2F9265E800EAF93E /* iFans */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = iFans;
@@ -48,6 +97,15 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		8B15BDFA2F9F141300249A0E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8B15BE022F9F141300249A0E /* SwiftUI.framework in Frameworks */,
+				8B15BE002F9F141300249A0E /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8B4660DA2F9265E800EAF93E /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -72,12 +130,24 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		8B15BDFE2F9F141300249A0E /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				8B15BDFF2F9F141300249A0E /* WidgetKit.framework */,
+				8B15BE012F9F141300249A0E /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		8B4660D42F9265E800EAF93E = {
 			isa = PBXGroup;
 			children = (
+				8B15BE172F9F154400249A0E /* i​Fans​WidgetsExtension.entitlements */,
 				8B4660DF2F9265E800EAF93E /* iFans */,
 				8B4660ED2F9265EA00EAF93E /* iFansTests */,
 				8B4660F72F9265EA00EAF93E /* iFansUITests */,
+				8B15BE032F9F141300249A0E /* i​Fans​Widgets */,
+				8B15BDFE2F9F141300249A0E /* Frameworks */,
 				8B4660DE2F9265E800EAF93E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -88,6 +158,7 @@
 				8B4660DD2F9265E800EAF93E /* oh fans.app */,
 				8B4660EA2F9265EA00EAF93E /* iFansTests.xctest */,
 				8B4660F42F9265EA00EAF93E /* iFansUITests.xctest */,
+				8B15BDFD2F9F141300249A0E /* i​Fans​WidgetsExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -95,6 +166,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		8B15BDFC2F9F141300249A0E /* i​Fans​WidgetsExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8B15BE162F9F141400249A0E /* Build configuration list for PBXNativeTarget "i​Fans​WidgetsExtension" */;
+			buildPhases = (
+				8B15BDF92F9F141300249A0E /* Sources */,
+				8B15BDFA2F9F141300249A0E /* Frameworks */,
+				8B15BDFB2F9F141300249A0E /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				8B15BE032F9F141300249A0E /* i​Fans​Widgets */,
+			);
+			name = "i​Fans​WidgetsExtension";
+			packageProductDependencies = (
+			);
+			productName = "i​Fans​WidgetsExtension";
+			productReference = 8B15BDFD2F9F141300249A0E /* i​Fans​WidgetsExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		8B4660DC2F9265E800EAF93E /* iFans */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 8B4660FE2F9265EA00EAF93E /* Build configuration list for PBXNativeTarget "iFans" */;
@@ -103,10 +196,12 @@
 				8B4660DA2F9265E800EAF93E /* Frameworks */,
 				8B9A1C012F92700100EAF93E /* Bundle Helper Installer */,
 				8B4660DB2F9265E800EAF93E /* Resources */,
+				8B15BE122F9F141400249A0E /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				8B15BE102F9F141400249A0E /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				8B4660DF2F9265E800EAF93E /* iFans */,
@@ -174,6 +269,9 @@
 				LastSwiftUpdateCheck = 2640;
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
+					8B15BDFC2F9F141300249A0E = {
+						CreatedOnToolsVersion = 26.4.1;
+					};
 					8B4660DC2F9265E800EAF93E = {
 						CreatedOnToolsVersion = 26.4.1;
 					};
@@ -204,11 +302,19 @@
 				8B4660DC2F9265E800EAF93E /* iFans */,
 				8B4660E92F9265EA00EAF93E /* iFansTests */,
 				8B4660F32F9265EA00EAF93E /* iFansUITests */,
+				8B15BDFC2F9F141300249A0E /* i​Fans​WidgetsExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		8B15BDFB2F9F141300249A0E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8B4660DB2F9265E800EAF93E /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -266,6 +372,13 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		8B15BDF92F9F141300249A0E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8B4660D92F9265E800EAF93E /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -290,6 +403,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		8B15BE102F9F141400249A0E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8B15BDFC2F9F141300249A0E /* i​Fans​WidgetsExtension */;
+			targetProxy = 8B15BE0F2F9F141400249A0E /* PBXContainerItemProxy */;
+		};
 		8B4660EC2F9265EA00EAF93E /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 8B4660DC2F9265E800EAF93E /* iFans */;
@@ -303,6 +421,72 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		8B15BE132F9F141400249A0E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = "i​Fans​WidgetsExtension.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_APP_SANDBOX = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "i​Fans​Widgets/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "i​Fans​Widgets";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.sobigrice.ohFans.i-Fans-Widgets";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = NO;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		8B15BE142F9F141400249A0E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = "i​Fans​WidgetsExtension.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_APP_SANDBOX = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "i​Fans​Widgets/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "i​Fans​Widgets";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.sobigrice.ohFans.i-Fans-Widgets";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = NO;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 		8B4660FC2F9265EA00EAF93E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -570,6 +754,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		8B15BE162F9F141400249A0E /* Build configuration list for PBXNativeTarget "i​Fans​WidgetsExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8B15BE132F9F141400249A0E /* Debug */,
+				8B15BE142F9F141400249A0E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		8B4660D82F9265E800EAF93E /* Build configuration list for PBXProject "iFans" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
